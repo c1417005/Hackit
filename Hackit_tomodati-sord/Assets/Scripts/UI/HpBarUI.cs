@@ -40,6 +40,7 @@ public class HpBarUI : MonoBehaviour
         {
             _fighter.OnHpChanged -= HandleHpChanged;
             _fighter.OnSpinChanged -= HandleSpinChanged;
+            _fighter.OnModeChanged -= HandleModeChanged;
         }
 
         _fighter = fighter;
@@ -48,9 +49,11 @@ public class HpBarUI : MonoBehaviour
         {
             _fighter.OnHpChanged += HandleHpChanged;
             _fighter.OnSpinChanged += HandleSpinChanged;
+            _fighter.OnModeChanged += HandleModeChanged;
             // Start の発火を待たずに今の値で初期化する
             HandleHpChanged(_fighter.Hp, _fighter.maxHp);
             HandleSpinChanged(_fighter.SpinRatio);
+            HandleModeChanged(_fighter.CurrentMode);
             _trailRatio = _ratio;
             ApplyRect(trail, _trailRatio);
         }
@@ -62,12 +65,18 @@ public class HpBarUI : MonoBehaviour
         {
             _fighter.OnHpChanged -= HandleHpChanged;
             _fighter.OnSpinChanged -= HandleSpinChanged;
+            _fighter.OnModeChanged -= HandleModeChanged;
         }
     }
 
     void HandleSpinChanged(float ratio)
     {
         ApplyRect(spinFill, Mathf.Clamp01(ratio));
+    }
+
+    void HandleModeChanged(Fighter.WeaponMode mode)
+    {
+        UpdateLabel(_fighter != null ? _fighter.Hp : 0f);
     }
 
     void HandleHpChanged(float current, float max)
@@ -92,11 +101,15 @@ public class HpBarUI : MonoBehaviour
             fillGraphic.color = Color.Lerp(new Color(1f, 0.10f, 0.08f), new Color(0.16f, 1f, 0.42f), _ratio);
         }
 
-        if (label != null)
-        {
-            string swordName = _fighter != null && _fighter.Sword != null ? _fighter.Sword.name : "";
-            label.text = $"{swordName}   {Mathf.CeilToInt(current)}";
-        }
+        UpdateLabel(current);
+    }
+
+    void UpdateLabel(float current)
+    {
+        if (label == null) return;
+        string swordName = _fighter != null && _fighter.Sword != null ? _fighter.Sword.name : "";
+        string mode = _fighter != null && _fighter.CurrentMode == Fighter.WeaponMode.Axe ? "AXE" : "SWORD";
+        label.text = $"{swordName}   [{mode}]   {Mathf.CeilToInt(current)}";
     }
 
     void Update()

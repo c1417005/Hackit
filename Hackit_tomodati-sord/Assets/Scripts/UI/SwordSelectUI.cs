@@ -327,18 +327,22 @@ public class SwordSelectUI : MonoBehaviour
 
             if (pad.dpad.left.wasPressedThisFrame) step = -1;
             if (pad.dpad.right.wasPressedThisFrame) step = 1;
+            if (pad.dpad.up.wasPressedThisFrame) step = -1;
+            if (pad.dpad.down.wasPressedThisFrame) step = 1;
 
             // スティックは倒しっぱなしで連続移動しないよう、しきい値を跨いだ瞬間だけ拾う
             float x = pad.leftStick.x.ReadValue();
-            if (Mathf.Abs(x) > 0.6f)
+            float y = pad.leftStick.y.ReadValue();
+            float axis = Mathf.Abs(y) > Mathf.Abs(x) ? -y : x;
+            if (Mathf.Abs(axis) > 0.6f)
             {
                 if (!_stickLatched[playerIndex])
                 {
-                    step = x < 0f ? -1 : 1;
+                    step = axis < 0f ? -1 : 1;
                     _stickLatched[playerIndex] = true;
                 }
             }
-            else if (Mathf.Abs(x) < 0.3f)
+            else if (Mathf.Abs(axis) < 0.3f)
             {
                 _stickLatched[playerIndex] = false;
             }
@@ -357,6 +361,8 @@ public class SwordSelectUI : MonoBehaviour
         {
             if (kb.aKey.wasPressedThisFrame) step = -1;
             if (kb.dKey.wasPressedThisFrame) step = 1;
+            if (kb.wKey.wasPressedThisFrame) step = -1;
+            if (kb.sKey.wasPressedThisFrame) step = 1;
             decide = kb.fKey.wasPressedThisFrame;
             cancel = kb.gKey.wasPressedThisFrame;
         }
@@ -364,6 +370,8 @@ public class SwordSelectUI : MonoBehaviour
         {
             if (kb.leftArrowKey.wasPressedThisFrame) step = -1;
             if (kb.rightArrowKey.wasPressedThisFrame) step = 1;
+            if (kb.upArrowKey.wasPressedThisFrame) step = -1;
+            if (kb.downArrowKey.wasPressedThisFrame) step = 1;
             decide = kb.periodKey.wasPressedThisFrame;
             cancel = kb.slashKey.wasPressedThisFrame;
         }

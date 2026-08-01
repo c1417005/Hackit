@@ -26,8 +26,8 @@ public static class BattleStageInstaller
     // 横斬りは奥行き方向にも振るので、x方向に使えるのはその 0.845 倍で 1.07。
     // 相手の被弾判定の半幅 0.48 を足すと、手の間隔 D は 1.55 が限界。
     // ぎりぎりだと回転の具合で当たらないので、余裕をみて D = 1.2〜1.44 に収める。
-    const float MinSpawnDistance = 0.55f;   // これ以下だと手が重なって見える
-    const float MaxSpawnDistance = 0.72f;   // これ以上だと攻撃が届かずカウンター専用になる
+    const float MinSpawnDistance = 0.60f;   // ニュートラルから通常攻撃が届く基準距離
+    const float MaxSpawnDistance = 0.68f;   // 長い武器だけが一方的にならない上限
 
     [System.Serializable]
     public struct Config

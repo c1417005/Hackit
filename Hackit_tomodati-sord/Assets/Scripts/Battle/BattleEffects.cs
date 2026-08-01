@@ -14,6 +14,7 @@ public sealed class BattleEffects : MonoBehaviour
     Canvas _canvas;
     RectTransform _canvasRect;
     AudioSource _audio;
+    AudioSource _music;
     AudioClip _hitSound;
     AudioClip _guardSound;
 
@@ -48,6 +49,14 @@ public sealed class BattleEffects : MonoBehaviour
         _audio.volume = 0.72f;
         _hitSound = BuildImpactClip(false);
         _guardSound = BuildImpactClip(true);
+
+        _music = gameObject.AddComponent<AudioSource>();
+        _music.playOnAwake = false;
+        _music.spatialBlend = 0f;
+        _music.loop = true;
+        _music.volume = 0.22f;
+        _music.clip = BuildBattleMusic();
+        _music.Play();
     }
 
     void OnDestroy()
@@ -286,6 +295,47 @@ public sealed class BattleEffects : MonoBehaviour
         }
 
         AudioClip clip = AudioClip.Create(metallic ? "GuardClang" : "SwordImpact", samples, 1, sampleRate, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+
+    static AudioClip BuildBattleMusic()
+    {
+        const int sampleRate = 44100;
+        const float stepSeconds = 0.25f;
+        int[] melody =
+        {
+            64, 67, 71, 67, 62, 67, 69, 67,
+            64, 67, 72, 71, 69, 67, 62, 59,
+            64, 67, 71, 74, 72, 71, 67, 64,
+            62, 67, 69, 71, 69, 67, 64, 62,
+        };
+        int[] bass = { 40, 40, 38, 38, 36, 36, 35, 35 };
+
+        int stepSamples = Mathf.RoundToInt(sampleRate * stepSeconds);
+        int samples = melody.Length * stepSamples;
+        float[] data = new float[samples];
+
+        for (int i = 0; i < samples; i++)
+        {
+            int step = i / stepSamples;
+            float within = (i % stepSamples) / (float)sampleRate;
+            float time = i / (float)sampleRate;
+
+            float leadHz = 440f * Mathf.Pow(2f, (melody[step] - 69) / 12f);
+            float bassHz = 440f * Mathf.Pow(2f, (bass[(step / 4) % bass.Length] - 69) / 12f);
+            float leadEnvelope = Mathf.Clamp01(1f - within / stepSeconds) * Mathf.Min(1f, within * 45f);
+            float lead = Mathf.Sign(Mathf.Sin(time * Mathf.PI * 2f * leadHz)) * 0.10f * leadEnvelope;
+            float low = Mathf.Sin(time * Mathf.PI * 2f * bassHz) * 0.13f;
+
+            float beatWithin = (i % (stepSamples * 2)) / (float)sampleRate;
+            float kickEnvelope = Mathf.Exp(-beatWithin * 18f);
+            float kick = Mathf.Sin(time * Mathf.PI * 2f * (58f + 55f * kickEnvelope)) * kickEnvelope * 0.18f;
+
+            data[i] = Mathf.Clamp(lead + low + kick, -0.72f, 0.72f);
+        }
+
+        AudioClip clip = AudioClip.Create("GeneratedBattleBGM", samples, 1, sampleRate, false);
         clip.SetData(data, 0);
         return clip;
     }
