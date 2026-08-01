@@ -10,9 +10,10 @@ between shoulders and hips, and computes the average clothing color.
 import json
 import sys
 from pathlib import Path
+import os
 
 import cv2
-import mediapipe as mp
+from rembg import remove
 import numpy as np
 
 HUE_ATTRIBUTE_TABLE = [
@@ -33,35 +34,51 @@ def hue_to_attribute(hue: float) -> str:
     return "無"
 
 
-def landmark_to_pixel(landmark, width: int, height: int):
-    return int(landmark.x * width), int(landmark.y * height)
+def _bbox_from_alpha(alpha: np.ndarray):
+    ys, xs = np.where(alpha > 0)
+    if ys.size == 0:
+        return None
+    y1, y2 = ys.min(), ys.max()
+    x1, x2 = xs.min(), xs.max()
+    return x1, y1, x2, y2
 
 
-def get_pose_landmarks(image_bgr):
-    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    with mp.solutions.pose.Pose(static_image_mode=True, model_complexity=1) as pose:
-        results = pose.process(image_rgb)
-    if not results.pose_landmarks:
-        raise ValueError("人物のランドマークを検出できませんでした。全身が写っているか確認してください。")
-    return results.pose_landmarks.landmark
+def estimate_torso_box_from_mask(bgr_img):
+    """Estimate torso bounding box from an RGBA foreground extracted by rembg.
 
+    Strategy:
+    - Run rembg.remove to get RGBA image and alpha mask
+    - Compute foreground bbox from alpha
+    - Define torso as the central upper-middle portion of the bbox (approx shoulders->hips)
+    """
+    from PIL import Image
 
-def create_torso_mask(image_bgr, landmarks):
-    h, w = image_bgr.shape[:2]
-    left_shoulder = landmark_to_pixel(landmarks[11], w, h)
-    right_shoulder = landmark_to_pixel(landmarks[12], w, h)
-    left_hip = landmark_to_pixel(landmarks[23], w, h)
-    right_hip = landmark_to_pixel(landmarks[24], w, h)
+    pil = Image.fromarray(cv2.cvtColor(bgr_img, cv2.COLOR_BGR2RGB))
+    rgba = remove(pil)
+    rgba_np = np.array(rgba)
+    if rgba_np.shape[2] == 4:
+        alpha = rgba_np[:, :, 3]
+    else:
+        # fallback: treat non-white pixels as foreground
+        gray = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2GRAY)
+        alpha = np.where(gray < 250, 255, 0).astype(np.uint8)
 
-    polygon = np.array([
-        left_shoulder,
-        right_shoulder,
-        right_hip,
-        left_hip,
-    ], dtype=np.int32)
-    mask = np.zeros((h, w), dtype=np.uint8)
-    cv2.fillPoly(mask, [polygon], 255)
-    return mask
+    bbox = _bbox_from_alpha(alpha)
+    if bbox is None:
+        raise ValueError("人物の領域が検出できませんでした（背景除去失敗）。")
+
+    x1, y1, x2, y2 = bbox
+    bw = x2 - x1
+    bh = y2 - y1
+    # Torso: from 20% down from top to 60% down (relative to foreground bbox)
+    ty1 = y1 + int(0.20 * bh)
+    ty2 = y1 + int(0.60 * bh)
+    # Clip
+    ty1 = max(0, ty1)
+    ty2 = min(bgr_img.shape[0], ty2)
+
+    return (x1, ty1, x2, ty2), alpha
+
 
 
 def extract_clothing_color(image_path: Path):
@@ -76,20 +93,25 @@ def extract_clothing_color(image_path: Path):
         raise ValueError("カラー画像を指定してください。")
 
     bgr = img[:, :, :3] if img.shape[2] == 4 else img
-    landmarks = get_pose_landmarks(bgr)
-    mask = create_torso_mask(bgr, landmarks)
 
-    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    torso_pixels = hsv[mask == 255]
-    if torso_pixels.size == 0:
+    # Use rembg to estimate torso box and alpha mask, then build mask for torso
+    torso_box, alpha = estimate_torso_box_from_mask(bgr)
+    x1, y1, x2, y2 = torso_box
+    mask = np.zeros(bgr.shape[:2], dtype=np.uint8)
+    mask[y1:y2, x1:x2] = (alpha[y1:y2, x1:x2] > 0).astype(np.uint8) * 255
+
+    # Compute average color by averaging B,G,R channels of masked pixels
+    bgr_pixels = bgr[mask == 255]
+    if bgr_pixels.size == 0:
         raise ValueError("服領域の色を抽出できませんでした。マスク領域を確認してください。")
 
-    avg_hsv = torso_pixels.mean(axis=0)
-    hue, sat, val = float(avg_hsv[0]), float(avg_hsv[1]), float(avg_hsv[2])
+    avg_bgr = bgr_pixels.mean(axis=0)  # [B, G, R]
+    avg_rgb = {"r": int(round(float(avg_bgr[2]))), "g": int(round(float(avg_bgr[1]))), "b": int(round(float(avg_bgr[0])))}
 
-    avg_pixel = np.uint8([[[hue, sat, val]]])
-    avg_bgr = cv2.cvtColor(avg_pixel, cv2.COLOR_HSV2BGR)[0, 0]
-    avg_rgb = {"r": int(avg_bgr[2]), "g": int(avg_bgr[1]), "b": int(avg_bgr[0])}
+    # For attribute mapping, convert the average RGB back to HSV to get hue
+    avg_pixel_bgr = np.uint8([[[avg_rgb["b"], avg_rgb["g"], avg_rgb["r"]]]])
+    avg_hsv = cv2.cvtColor(avg_pixel_bgr, cv2.COLOR_BGR2HSV)[0, 0]
+    hue, sat, val = float(avg_hsv[0]), float(avg_hsv[1]), float(avg_hsv[2])
 
     return {
         "image": str(image_path.name),
