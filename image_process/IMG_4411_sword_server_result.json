@@ -1,0 +1,22 @@
+{
+  "image": "IMG_4411_sword.png",
+  "texture": "IMG_4411_sword_sword.png",
+  "shoulder_height_ratio": 0.5334342669694676,
+  "color": {
+    "image": "IMG_4411_sword_sword.png",
+    "hue": 93.0,
+    "saturation": 18.0,
+    "value": 144.0,
+    "rgb": {
+      "r": 134,
+      "g": 143,
+      "b": 144
+    },
+    "attribute": "氷"
+  },
+  "stats": {
+    "attack": 211,
+    "speed": 17,
+    "defense": 53
+  }
+}
