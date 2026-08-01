@@ -116,10 +116,9 @@
   <div class="status" id="status"></div>
 
 <script>
-  // ここをサーバーのURLに合わせて変更してください
-  // 例: FastAPIをローカルで動かしてる場合は同じWi-Fi内のIPを指定
-  // 例: "http://192.168.1.10:8000/upload"
-  const API_URL = "http://localhost:8000/upload";
+  // ページと同じオリジンに送るので相対パスでよい
+  // (スマホからIPで開いてもそのまま動く)
+  const API_URL = "/api/upload";
 
   const fileInput = document.getElementById('fileInput');
   const captureBtn = document.getElementById('captureBtn');
