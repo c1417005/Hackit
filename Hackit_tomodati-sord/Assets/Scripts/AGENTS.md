@@ -4,14 +4,29 @@
 
 ## モジュールと担当
 
-| フォルダ | 担当 | 中身 | 依存できる先 |
-|---|---|---|---|
-| `Core/` | 共有 | `SwordData` `Sqlite` `HitStop` `WavyText` | なし |
-| `Data/` | データ・進行 | `SwordRepository` | Core |
-| `Battle/` | 戦闘 | `Fighter` `SwordBuilder` `BattleCamera` `BattleEffects` `BattleStageInstaller` | Core |
-| `Flow/` | データ・進行 | `DuelManager` `FlowInstaller` | Core, Data, Battle |
-| `UI/` | UI・演出 | `BattleHud` `HpBarUI` `SwordSelectUI` `ForgeUI` `UiInstaller` `DebugResultOverlay` | Core, Battle, Flow |
-| `App/` | 共有 | `GameBootstrap` | 全部 |
+| フォルダ | 担当（名前を入れる） | ブランチ | 中身 | 依存できる先 |
+|---|---|---|---|---|
+| `Core/` | 共有 | — | `SwordData` `Sqlite` `HitStop` `WavyText` | なし |
+| `Data/` | データ・進行 / ??? | `feature/unityData` | `SwordRepository` | Core |
+| `Battle/` | 戦闘 / ??? | `feature/unityBattle` | `Fighter` `SwordBuilder` `BattleCamera` `BattleEffects` `BattleStageInstaller` | Core |
+| `Flow/` | データ・進行 / ??? | `feature/unityData` | `DuelManager` `FlowInstaller` | Core, Data, Battle |
+| `UI/` | UI・演出 / ??? | `feature/unityUi` | `BattleHud` `HpBarUI` `SwordSelectUI` `ForgeUI` `UiInstaller` `DebugResultOverlay` | Core, Battle, Flow |
+| `App/` | 共有 | — | `GameBootstrap` | 全部 |
+
+## ブランチ運用
+
+```
+main
+ └ feature/unity          ← Unity勢の統合先。ここに3本をマージする
+    ├ feature/unityBattle  戦闘
+    ├ feature/unityUi      UI・演出
+    └ feature/unityData    データ・進行
+```
+
+- 作業は自分のブランチで行い、`feature/unity` へPRを出す
+- `feature/unity` が進んだら各自 `git merge origin/feature/unity` で追従する
+- 触るフォルダが分かれているので、追従時にぶつかるのは `Core/` `App/` と
+  `CLAUDE.md` くらいのはず。ぶつかったら**境界を越えていないか疑う**
 
 依存は**下から上への一方通行**。`.asmdef` で強制してあるので、逆流させるとコンパイルエラーになる。
 エラーになったら「参照を足す」のではなく、**設計がおかしいと考えること**。
