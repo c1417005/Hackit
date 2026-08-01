@@ -52,6 +52,40 @@ def hue_to_attribute(hue: float) -> str:
     return "無"
 
 
+def _landmark_to_pixel(landmark, width: int, height: int):
+    return int(landmark.x * width), int(landmark.y * height)
+
+
+def extract_clothing_color(img_bgr, pose_landmarks):
+    """肩・腰ランドマークから服の領域を切り出して色を推定する"""
+    h, w = img_bgr.shape[:2]
+    left_shoulder = _landmark_to_pixel(pose_landmarks['left_shoulder'], w, h)
+    right_shoulder = _landmark_to_pixel(pose_landmarks['right_shoulder'], w, h)
+    left_hip = _landmark_to_pixel(pose_landmarks['left_hip'], w, h)
+    right_hip = _landmark_to_pixel(pose_landmarks['right_hip'], w, h)
+
+    torso_polygon = np.array([
+        left_shoulder,
+        right_shoulder,
+        right_hip,
+        left_hip,
+    ], dtype=np.int32)
+    mask = np.zeros((h, w), dtype=np.uint8)
+    cv2.fillPoly(mask, [torso_polygon], 255)
+
+    hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    torso_pixels = hsv[mask == 255]
+    if torso_pixels.size == 0:
+        raise ValueError("服領域が抽出できませんでした。ランドマーク検出結果を確認してください。")
+
+    # 服の色抽出: マスク領域の平均HSVを使う
+    avg_hsv = torso_pixels.mean(axis=0)
+    hue, sat, val = float(avg_hsv[0]), float(avg_hsv[1]), float(avg_hsv[2])
+    attribute = hue_to_attribute(hue)
+    print(f"[OK] 服色抽出: H={hue:.1f} S={sat:.1f} V={val:.1f} -> 属性={attribute}")
+    return hue, sat, val, attribute
+
+
 def remove_background(image_path: Path, out_path: Path) -> Image.Image:
     """rembgで背景除去し、透過PNGとして保存"""
     img = Image.open(image_path).convert("RGB")
@@ -111,7 +145,16 @@ def estimate_physique(image_path: Path):
         f"[OK] 体格推定: 肩幅/身長比={shoulder_height_ratio:.3f}, "
         f"胴体矩形=({x1},{y1})-({x2},{y2})"
     )
-    return shoulder_height_ratio, (x1, y1, x2, y2), img_bgr
+    pose_landmarks = {
+        'nose': nose,
+        'left_shoulder': l_sh,
+        'right_shoulder': r_sh,
+        'left_hip': l_hip,
+        'right_hip': r_hip,
+        'left_ankle': l_ank,
+        'right_ankle': r_ank,
+    }
+    return shoulder_height_ratio, (x1, y1, x2, y2), img_bgr, pose_landmarks
 
 
 def extract_torso_color(img_bgr, torso_box):
@@ -128,6 +171,36 @@ def extract_torso_color(img_bgr, torso_box):
 
     attribute = hue_to_attribute(hue)
     print(f"[OK] 色抽出: H={hue:.1f} S={sat:.1f} V={val:.1f} -> 属性={attribute}")
+    return hue, sat, val, attribute
+
+
+def extract_clothing_color(img_bgr, pose_landmarks):
+    """肩・腰ランドマークから服の領域を切り出して色を推定する"""
+    h, w = img_bgr.shape[:2]
+    left_shoulder = _landmark_to_pixel(pose_landmarks['left_shoulder'], w, h)
+    right_shoulder = _landmark_to_pixel(pose_landmarks['right_shoulder'], w, h)
+    left_hip = _landmark_to_pixel(pose_landmarks['left_hip'], w, h)
+    right_hip = _landmark_to_pixel(pose_landmarks['right_hip'], w, h)
+
+    torso_polygon = np.array([
+        left_shoulder,
+        right_shoulder,
+        right_hip,
+        left_hip,
+    ], dtype=np.int32)
+    mask = np.zeros((h, w), dtype=np.uint8)
+    cv2.fillPoly(mask, [torso_polygon], 255)
+
+    hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    torso_pixels = hsv[mask == 255]
+    if torso_pixels.size == 0:
+        raise ValueError("服領域が抽出できませんでした。ランドマーク検出結果を確認してください。")
+
+    avg_hsv = torso_pixels.mean(axis=0)
+    hue, sat, val = float(avg_hsv[0]), float(avg_hsv[1]), float(avg_hsv[2])
+
+    attribute = hue_to_attribute(hue)
+    print(f"[OK] 服色抽出: H={hue:.1f} S={sat:.1f} V={val:.1f} -> 属性={attribute}")
     return hue, sat, val, attribute
 
 
@@ -200,10 +273,10 @@ def process_image(image_path: Path, texture_out: Path):
     remove_background(image_path, texture_out)
 
     # 体格推定
-    shoulder_height_ratio, torso_box, img_bgr = estimate_physique(image_path)
+    shoulder_height_ratio, torso_box, img_bgr, pose_landmarks = estimate_physique(image_path)
 
-    # 色抽出
-    hue, sat, val, attribute = extract_torso_color(img_bgr, torso_box)
+    # 服の色抽出
+    hue, sat, val, attribute = extract_clothing_color(img_bgr, pose_landmarks)
 
     return {
         "texture_path": texture_out,
