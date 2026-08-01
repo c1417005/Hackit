@@ -71,11 +71,8 @@ public static class SwordBuilder
         blade.transform.localScale = new Vector3(metrics.bladeWidth, metrics.bladeLength, 1f);
         blade.GetComponent<MeshRenderer>().sharedMaterial = CreateSwordMaterial(texture);
 
-        // --- Spine : 薄い芯。板ポリだけだと真横で消えるのでその保険 ---
-        var spine = CreateMeshObject("Spine", PrimitiveType.Cube, root.transform);
-        spine.transform.localPosition = new Vector3(0f, metrics.bladeCenterY, 0.012f);
-        spine.transform.localScale = new Vector3(0.035f, metrics.bladeLength * 0.96f, 0.035f);
-        spine.GetComponent<MeshRenderer>().sharedMaterial = CreateSolidMaterial(new Color(0.20f, 0.22f, 0.26f));
+        // Spine（薄い芯）は剣だった頃の名残。人のシルエットを縦に貫いて見えるので出さない。
+        // 真横から見たときに消える問題は、カメラが横固定なので実際には起きない。
 
         return root;
     }

@@ -16,7 +16,18 @@ public static class BattleStageInstaller
         public Fighter Player1;
         public Fighter Player2;
         public Camera Camera;
+
+        /// <summary>実際に使った配置距離。DuelManager にも同じ値を渡すこと。</summary>
+        public float SpawnDistance;
     }
+
+    // 間合いの上限は実測で決めた。
+    // 一番短い武器の全長は 1.04、手の支点から判定の先端までが 1.26。
+    // 横斬りは奥行き方向にも振るので、x方向に使えるのはその 0.845 倍で 1.07。
+    // 相手の被弾判定の半幅 0.48 を足すと、手の間隔 D は 1.55 が限界。
+    // ぎりぎりだと回転の具合で当たらないので、余裕をみて D = 1.2〜1.44 に収める。
+    const float MinSpawnDistance = 0.55f;   // これ以下だと手が重なって見える
+    const float MaxSpawnDistance = 0.72f;   // これ以上だと攻撃が届かずカウンター専用になる
 
     [System.Serializable]
     public struct Config
@@ -39,8 +50,8 @@ public static class BattleStageInstaller
 
     public static Rig Install(Config config)
     {
-        // 旧振り子版のシーンには 0.5 が Serialize 済みなので、斬撃の間合いを最低値として保証する
-        float spawnDistance = Mathf.Max(config.spawnDistance, 1.15f);
+        // シーンには旧版の値が Serialize 済みのことがあるので、必ず射程の成立する範囲へ収める
+        float spawnDistance = Mathf.Clamp(config.spawnDistance, MinSpawnDistance, MaxSpawnDistance);
 
         BuildGround();
         BuildBackdrop();
@@ -52,6 +63,7 @@ public static class BattleStageInstaller
         var rig = new Rig
         {
             Camera = camera,
+            SpawnDistance = spawnDistance,
             Player1 = BuildFighter("Player1", 0, +1, -spawnDistance, config.anchorHeight),
             Player2 = BuildFighter("Player2", 1, -1, +spawnDistance, config.anchorHeight),
         };

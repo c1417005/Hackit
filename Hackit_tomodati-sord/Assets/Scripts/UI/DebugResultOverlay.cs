@@ -38,7 +38,9 @@ public class DebugResultOverlay : MonoBehaviour
             fontSize = 48,
             alignment = TextAnchor.MiddleCenter,
         };
-        string label = (_duel.Winner.playerIndex == 0 ? "1P" : "2P") + " WIN";
+        string name = _duel.Winner.Sword != null ? _duel.Winner.Sword.name : null;
+        if (string.IsNullOrEmpty(name)) name = _duel.Winner.playerIndex == 0 ? "1P" : "2P";
+        string label = name + " の勝ち！";
         GUI.Label(new Rect(0, Screen.height * 0.32f, Screen.width, 80), label, style);
 
         if (_duel.CanLeaveResult)

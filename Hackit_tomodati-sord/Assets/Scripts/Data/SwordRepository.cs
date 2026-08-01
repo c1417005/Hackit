@@ -413,21 +413,37 @@ public class SwordRepository : MonoBehaviour
             float halfWidth;
             Color color;
 
-            if (t < 0.14f)                      // 柄
+            // 剣ではなく「人」のシルエットを描く。
+            // このゲームは人の全身写真がそのまま武器になるので、
+            // モックも剣の形にしてしまうとコンセプトが伝わらない。
+            // 下(t=0)が足、上(t=1)が頭。
+            if (t < 0.42f)                      // 脚
             {
-                halfWidth = 0.055f * w;
+                halfWidth = 0.11f * w;
+                color = gripColor;              // ズボン
+            }
+            else if (t < 0.50f)                 // 腰
+            {
+                halfWidth = 0.15f * w;
                 color = gripColor;
             }
-            else if (t < 0.20f)                 // 鍔
+            else if (t < 0.74f)                 // 胴と腕
             {
-                halfWidth = 0.30f * w;
-                color = Color.Lerp(gripColor, Color.white, 0.25f);
+                halfWidth = 0.26f * w;
+                color = bladeColor;             // 服
             }
-            else                                // 刃。先端に向かって細くする
+            else if (t < 0.80f)                 // 肩から首
             {
-                float bladeT = Mathf.InverseLerp(0.20f, 1f, t);
-                halfWidth = Mathf.Lerp(0.20f, 0.01f, bladeT * bladeT) * w;
-                color = Color.Lerp(bladeColor, Color.white, 0.25f * (1f - bladeT));
+                float shoulderT = Mathf.InverseLerp(0.74f, 0.80f, t);
+                halfWidth = Mathf.Lerp(0.24f, 0.07f, shoulderT) * w;
+                color = bladeColor;
+            }
+            else                                // 頭
+            {
+                float headT = Mathf.InverseLerp(0.80f, 1f, t);
+                // 上下が細い楕円にして頭らしく見せる
+                halfWidth = 0.16f * Mathf.Sin(headT * Mathf.PI) * w + 0.02f * w;
+                color = Color.Lerp(new Color(0.95f, 0.78f, 0.64f), new Color(0.35f, 0.24f, 0.18f), headT * headT);
             }
 
             for (int x = 0; x < w; x++)

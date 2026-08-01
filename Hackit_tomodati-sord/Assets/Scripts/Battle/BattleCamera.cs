@@ -17,13 +17,13 @@ public class BattleCamera : MonoBehaviour
 
     [Header("画角")]
     [Tooltip("対象の外側に取る余白")]
-    public float margin = 0.9f;
+    public float margin = 0.45f;
 
     [Tooltip("これ以上は寄らない（近づきすぎ防止）")]
-    public float minHalfHeight = 1.9f;
+    public float minHalfHeight = 1.15f;
 
     [Tooltip("これ以上は引かない")]
-    public float maxHalfHeight = 4.2f;
+    public float maxHalfHeight = 2.9f;
 
     [Tooltip("左右の追従の強さ。0で中央固定")]
     [Range(0f, 1f)]

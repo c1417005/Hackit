@@ -122,15 +122,8 @@ public class Fighter : MonoBehaviour
         _handPivot = pivotObject.transform;
         _handPivot.SetParent(transform, false);
 
-        CreatePart("Palm", PrimitiveType.Sphere, _handPivot,
-            new Vector3(0f, -0.02f, 0.06f), new Vector3(0.38f, 0.30f, 0.26f),
-            new Color(0.86f, 0.60f, 0.42f));
-        CreatePart("Thumb", PrimitiveType.Capsule, _handPivot,
-            new Vector3(0.14f * facing, 0.08f, -0.01f), new Vector3(0.10f, 0.22f, 0.10f),
-            new Color(0.92f, 0.67f, 0.48f));
-        CreatePart("Grip", PrimitiveType.Cylinder, _handPivot,
-            new Vector3(0f, 0.12f, 0f), new Vector3(0.09f, 0.16f, 0.09f),
-            new Color(0.17f, 0.11f, 0.08f));
+        BuildFist();
+        BuildHurtbox();
 
         var swordPivotObject = new GameObject("SwordPivot");
         _swordPivot = swordPivotObject.transform;
@@ -139,6 +132,66 @@ public class Fighter : MonoBehaviour
 
         ApplyFacing();
         _handPivot.localRotation = IdleRotation;
+    }
+
+    /// <summary>
+    /// 被弾判定。**これが無いと「相手の剣に自分の剣を当てる」ことでしか
+    /// ダメージが出ず、カウンター専用のゲームになる。**
+    ///
+    /// 手そのものを的にする。Fighter の原点に置いて攻撃モーションで動かさないので、
+    /// 棒立ちの相手にも普通に攻撃が当たる。
+    /// </summary>
+    void BuildHurtbox()
+    {
+        var go = new GameObject("Hurtbox");
+        go.transform.SetParent(transform, false);
+
+        // 的は手そのものではなく「掲げている人」。手の上に大きく取る。
+        // ここが小さいと、振り抜いた刃が届く範囲(x≈0.5)より奥になり永久に当たらない。
+        go.transform.localPosition = new Vector3(0f, 0.55f, 0f);
+
+        var box = go.AddComponent<BoxCollider>();
+        box.isTrigger = true;
+        box.size = new Vector3(0.95f, 1.70f, 0.75f);
+    }
+
+    /// <summary>
+    /// 握りこぶし。球ひとつだと肉団子に見えるので、
+    /// 甲・指4本・親指・袖口を分けて「握っている」形にする。
+    /// 外部モデルは持ってこない（出所とライセンスが確認できないものを混ぜたくないため）。
+    /// </summary>
+    void BuildFist()
+    {
+        var skin = new Color(0.93f, 0.74f, 0.60f);
+        var skinShade = new Color(0.82f, 0.62f, 0.49f);
+        var cuff = new Color(0.16f, 0.19f, 0.28f);
+
+        // 手の甲。縦に潰した箱で、丸い塊感を消す
+        CreatePart("Back", PrimitiveType.Cube, _handPivot,
+            new Vector3(0f, -0.01f, 0.02f), new Vector3(0.21f, 0.20f, 0.15f), skin);
+
+        // 指4本。握りに巻きつくように少しずつずらす
+        for (int i = 0; i < 4; i++)
+        {
+            float z = 0.055f - i * 0.037f;
+            CreatePart("Finger" + i, PrimitiveType.Capsule, _handPivot,
+                new Vector3(0.005f * facing, 0.075f, z),
+                new Vector3(0.075f, 0.052f, 0.075f), i % 2 == 0 ? skin : skinShade);
+        }
+
+        // 親指は反対側から被せる
+        CreatePart("Thumb", PrimitiveType.Capsule, _handPivot,
+            new Vector3(-0.085f * facing, 0.045f, 0.015f),
+            new Vector3(0.062f, 0.085f, 0.062f), skin);
+
+        // 袖口。手首の切断面を隠す
+        CreatePart("Cuff", PrimitiveType.Cylinder, _handPivot,
+            new Vector3(0f, -0.13f, 0f), new Vector3(0.20f, 0.09f, 0.18f), cuff);
+
+        // 握りの棒
+        CreatePart("Grip", PrimitiveType.Cylinder, _handPivot,
+            new Vector3(0f, 0.13f, 0f), new Vector3(0.075f, 0.14f, 0.075f),
+            new Color(0.17f, 0.11f, 0.08f));
     }
 
     static GameObject CreatePart(
@@ -194,10 +247,17 @@ public class Fighter : MonoBehaviour
 
         var hitboxObject = new GameObject("Hitbox");
         hitboxObject.transform.SetParent(_swordRoot.transform, false);
-        hitboxObject.transform.localPosition = new Vector3(0f, _metrics.bladeCenterY, 0f);
+
+        // 判定は握りから刃先までの**全長**を覆う。
+        // 以前は刃の一部（bladeLength * 0.92）しか無く、振り抜いても
+        // 判定の先端が x=0.03 までしか出ないため相手に永久に届かなかった。
+        // ここを全長にすることで、reach の長い剣ほど遠くまで届くようになる
+        //（＝ reach がゲーム的に意味を持つ）。
+        float length = _metrics.tipDistance;
+        hitboxObject.transform.localPosition = new Vector3(0f, length * 0.5f, 0f);
 
         var box = hitboxObject.AddComponent<BoxCollider>();
-        box.size = new Vector3(_metrics.bladeWidth * 0.86f, _metrics.bladeLength * 0.92f, 0.30f);
+        box.size = new Vector3(Mathf.Max(0.22f, _metrics.bladeWidth), length, 0.34f);
         box.isTrigger = true;
 
         _hitbox = hitboxObject.AddComponent<SwordAttackHitbox>();

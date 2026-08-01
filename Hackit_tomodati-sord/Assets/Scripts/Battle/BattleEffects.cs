@@ -67,6 +67,20 @@ public sealed class BattleEffects : MonoBehaviour
         Instance.StartCoroutine(Instance.CountdownRoutine(onComplete));
     }
 
+    /// <summary>「たけしの剣 の勝ち！」。剣の名前が取れないときだけ 1P/2P に落とす。</summary>
+    static string WinnerLabel(Fighter winner)
+    {
+        if (winner == null) return "";
+
+        string name = winner.Sword != null ? winner.Sword.name : null;
+        if (string.IsNullOrEmpty(name))
+        {
+            name = winner.playerIndex == 0 ? "1P" : "2P";
+        }
+
+        return name + " の勝ち！";
+    }
+
     public static void ShowKO(Fighter winner)
     {
         Instance.StartCoroutine(Instance.KoRoutine(winner));
@@ -220,7 +234,7 @@ public sealed class BattleEffects : MonoBehaviour
         }
 
         text.fontSize = 72;
-        text.text = winner != null && winner.playerIndex == 0 ? "1P WIN" : "2P WIN";
+        text.text = WinnerLabel(winner);
         yield return new WaitForSecondsRealtime(0.8f);
         Destroy(text.gameObject);
     }

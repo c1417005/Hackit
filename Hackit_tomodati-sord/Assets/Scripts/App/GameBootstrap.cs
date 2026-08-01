@@ -42,7 +42,10 @@ public class GameBootstrap : MonoBehaviour
             cameraPosition = cameraPosition,
         });
 
-        _duel = FlowInstaller.Install(stage.Player1, stage.Player2, spawnDistance, anchorHeight);
+        // Installer が射程の成立する範囲へ丸めているので、その値をそのまま渡す。
+        // ここで生の spawnDistance を渡すと、対戦開始時に DuelManager が
+        // 別の位置へ置き直してしまい、攻撃が届かなくなる。
+        _duel = FlowInstaller.Install(stage.Player1, stage.Player2, stage.SpawnDistance, anchorHeight);
 
         UiInstaller.Install(_duel, stage.Player1, stage.Player2, showDebugHud);
 
