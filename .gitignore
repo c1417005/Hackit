@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Pytest
+.pytest_cache/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated outputs (images, logs)
+output/
+*.log
+
+# Ignore large model/cache directories (user can adjust if needed)
+# rembg, mediapipe などのランタイムキャッシュはユーザーディレクトリに置かれることが多い
+# 例: .cache/, model files (uncomment if present in repo)
+# .cache/
+# models/
+
+# keep Git submodules tracked (do not ignore 'Hackit' if it's a submodule)
