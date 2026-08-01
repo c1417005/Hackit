@@ -1,0 +1,10 @@
+{
+    "name": "TomodachiSword.Flow",
+    "rootNamespace": "",
+    "references": [
+        "TomodachiSword.Core",
+        "TomodachiSword.Data",
+        "TomodachiSword.Battle"
+    ],
+    "autoReferenced": true
+}

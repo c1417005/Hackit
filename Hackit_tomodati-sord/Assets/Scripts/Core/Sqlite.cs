@@ -18,6 +18,7 @@ public sealed class Sqlite : IDisposable
     const int SQLITE_OK = 0;
     const int SQLITE_ROW = 100;
     const int SQLITE_DONE = 101;
+    const int SQLITE_BLOB = 4;
 
     const int OPEN_READONLY = 0x00000001;
     const int OPEN_READWRITE = 0x00000002;
@@ -76,8 +77,16 @@ public sealed class Sqlite : IDisposable
     public sealed class Row
     {
         readonly Dictionary<string, string> _values = new Dictionary<string, string>();
+        readonly Dictionary<string, byte[]> _blobs = new Dictionary<string, byte[]>();
 
         internal void Set(string column, string value) => _values[column] = value;
+        internal void SetBlob(string column, byte[] value) => _blobs[column] = value;
+
+        /// <summary>画像などのバイナリ列。無ければ null。</summary>
+        public byte[] GetBlob(string column)
+        {
+            return _blobs.TryGetValue(column, out byte[] v) ? v : null;
+        }
 
         public string GetString(string column, string fallback = "")
         {
@@ -119,6 +128,11 @@ public sealed class Sqlite : IDisposable
                 var row = new Row();
                 for (int i = 0; i < columnCount; i++)
                 {
+                    if (ColumnType(statement, i) == SQLITE_BLOB)
+                    {
+                        row.SetBlob(names[i], ReadBlob(statement, i));
+                        continue;
+                    }
                     row.Set(names[i], FromUtf8(ColumnText(statement, i)));
                 }
                 rows.Add(row);
@@ -272,6 +286,21 @@ public sealed class Sqlite : IDisposable
     static int ColumnCount(IntPtr stmt) => UseSystem ? Native.ColumnCountB(stmt) : Native.ColumnCountA(stmt);
     static IntPtr ColumnName(IntPtr stmt, int i) => UseSystem ? Native.ColumnNameB(stmt, i) : Native.ColumnNameA(stmt, i);
     static IntPtr ColumnText(IntPtr stmt, int i) => UseSystem ? Native.ColumnTextB(stmt, i) : Native.ColumnTextA(stmt, i);
+    static int ColumnType(IntPtr stmt, int i) => UseSystem ? Native.ColumnTypeB(stmt, i) : Native.ColumnTypeA(stmt, i);
+
+    /// <summary>BLOB 列をバイト配列で読む。ポインタは step するまでしか有効でないのでその場でコピーする。</summary>
+    static byte[] ReadBlob(IntPtr stmt, int index)
+    {
+        int length = UseSystem ? Native.ColumnBytesB(stmt, index) : Native.ColumnBytesA(stmt, index);
+        if (length <= 0) return null;
+
+        IntPtr pointer = UseSystem ? Native.ColumnBlobB(stmt, index) : Native.ColumnBlobA(stmt, index);
+        if (pointer == IntPtr.Zero) return null;
+
+        var buffer = new byte[length];
+        Marshal.Copy(pointer, buffer, 0, length);
+        return buffer;
+    }
 
     static int BindNull(IntPtr s, int i) => UseSystem ? Native.BindNullB(s, i) : Native.BindNullA(s, i);
     static int BindInt(IntPtr s, int i, int v) => UseSystem ? Native.BindIntB(s, i, v) : Native.BindIntA(s, i, v);
@@ -337,6 +366,21 @@ public sealed class Sqlite : IDisposable
         internal static extern IntPtr ColumnTextA(IntPtr stmt, int index);
         [DllImport(B, EntryPoint = "sqlite3_column_text", CallingConvention = Cdecl)]
         internal static extern IntPtr ColumnTextB(IntPtr stmt, int index);
+
+        [DllImport(A, EntryPoint = "sqlite3_column_type", CallingConvention = Cdecl)]
+        internal static extern int ColumnTypeA(IntPtr stmt, int index);
+        [DllImport(B, EntryPoint = "sqlite3_column_type", CallingConvention = Cdecl)]
+        internal static extern int ColumnTypeB(IntPtr stmt, int index);
+
+        [DllImport(A, EntryPoint = "sqlite3_column_blob", CallingConvention = Cdecl)]
+        internal static extern IntPtr ColumnBlobA(IntPtr stmt, int index);
+        [DllImport(B, EntryPoint = "sqlite3_column_blob", CallingConvention = Cdecl)]
+        internal static extern IntPtr ColumnBlobB(IntPtr stmt, int index);
+
+        [DllImport(A, EntryPoint = "sqlite3_column_bytes", CallingConvention = Cdecl)]
+        internal static extern int ColumnBytesA(IntPtr stmt, int index);
+        [DllImport(B, EntryPoint = "sqlite3_column_bytes", CallingConvention = Cdecl)]
+        internal static extern int ColumnBytesB(IntPtr stmt, int index);
 
         [DllImport(A, EntryPoint = "sqlite3_bind_null", CallingConvention = Cdecl)]
         internal static extern int BindNullA(IntPtr stmt, int index);

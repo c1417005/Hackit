@@ -40,19 +40,19 @@ crashlytics-build.properties
 
 # ---- クラッシュ復旧のシーンバックアップ ----
 # 「Recovering Scene Backups」で Yes を押すと生える。本物は Assets/Scenes/ 配下
-[Aa]ssets/_[Rr]ecovery/
-[Aa]ssets/_[Rr]ecovery.meta
+**/[Aa]ssets/_[Rr]ecovery/
+**/[Aa]ssets/_[Rr]ecovery.meta
 
 # ---- Addressables ----
-# 先頭に / を付けると リポジトリ直下 の Assets しか指さない。
-# このリポジトリは Hackit_tomodati-sord/Assets/... と1階層下なので付けないこと
-[Aa]ssets/[Ss]treamingAssets/aa.meta
-[Aa]ssets/[Ss]treamingAssets/aa/*
+# 途中にスラッシュがあるパターンは .gitignore のある階層に固定される。
+# Unity プロジェクトは Hackit_tomodati-sord/Assets/... と1階層下なので ** が要る。
+**/[Aa]ssets/[Ss]treamingAssets/aa.meta
+**/[Aa]ssets/[Ss]treamingAssets/aa/*
 
 # ---- 本番の人物写真は上げない ----
 # 切り抜き前後どちらも個人が写っている。テスト用の tomodachi_sword.db は上げて良い
-[Aa]ssets/[Ss]treamingAssets/photos/
-[Aa]ssets/[Ss]treamingAssets/swords/
+**/[Aa]ssets/[Ss]treamingAssets/photos/
+**/[Aa]ssets/[Ss]treamingAssets/swords/
 
 # ---- エージェントのローカル設定 ----
 # 秘密情報は無いが、このPC固有の絶対パスが入っていて他の人には使えない

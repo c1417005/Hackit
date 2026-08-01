@@ -100,6 +100,22 @@ Unityプロジェクトの実体はリポジトリ直下ではなく `Hackit_tom
 
 環境: Unity 6000.5.6f1 / URP 17.5 / Input System 1.20。
 
+**モジュール構成（2026-08-01、3人開発のため整理）**
+
+```
+Assets/Scripts/
+  Core/    SwordData Sqlite HitStop WavyText              ← 依存なし
+  Data/    SwordRepository                                 ← Core
+  Battle/  Fighter SwordBuilder BattleCamera BattleEffects BattleStageInstaller
+  Flow/    DuelManager FlowInstaller                       ← Core Data Battle
+  UI/      BattleHud HpBarUI SwordSelectUI ForgeUI UiInstaller DebugResultOverlay
+  App/     GameBootstrap                                   ← 全部
+```
+
+- 依存は下から上への一方通行。`.asmdef` で強制してあり、逆流するとコンパイルエラーになる
+- 担当は「戦闘 = Battle」「UI・演出 = UI」「データ・進行 = Data + Flow」。`Core` と `App` は共有
+- **詳しい決まりは [`Assets/Scripts/CLAUDE.md`](Hackit_tomodati-sord/Assets/Scripts/CLAUDE.md) にある。エージェントはそちらを読む**
+
 **実装済み**
 
 | ファイル | 役割 |
@@ -114,8 +130,14 @@ Unityプロジェクトの実体はリポジトリ直下ではなく `Hackit_tom
 | `SwordRepository.cs` | 剣データの取得元。`source` で `Mock / Sqlite / Supabase` を切替。どれで失敗しても最後はモックに落ちるのでデモが止まらない。モック画像の手続き生成もここ |
 | `Sqlite.cs` | SQLite の最小 P/Invoke ラッパー。読み取りと単純な書き込みだけ |
 | `DuelManager.cs` | 剣一覧取得 → 選択 → 装備 → 対戦 → 決着 → 戦績送信。`Loading / Select / Battle / Result` の4フェーズ。画面は持たない |
-| `SwordSelectUI.cs` | 剣の選択画面。カードを並べ、2人分のカーソルで選ぶ |
-| `BattleTestBootstrap.cs` | **テスト用の足場**。地面・カメラ・ファイター2体を実行時に組み立て、モックの剣を手動Equipする。剣画像も手続き的に生成するのでアセット不要。選択画面ができたら捨てて良い |
+| `SwordSelectUI.cs` | 既存の剣を選ぶ画面。カードを並べ、2人分のカーソルで選ぶ |
+| `ForgeUI.cs` | 「既存/新規」のモード選択と、新規作成の一連の画面（QR→錬成→抜刀→確認） |
+| `WavyText.cs` | 1文字ずつ波打つ見出し。錬成演出用。Legacy Text を並べて自前で動かしている |
+| `GameBootstrap.cs` | 組み立ての起点。3つの Installer を順に呼ぶだけ。シーンにはこれを貼った空オブジェクトが1つあるだけ |
+| `BattleStageInstaller.cs` | 地面・背景・カメラ・ライト・後処理・ファイター2体を組み立てて返す |
+| `FlowInstaller.cs` | `SwordRepository` + `DuelManager` を組み立てる |
+| `UiInstaller.cs` | 画面をまとめて生成する。画面を足すならここに1行 |
+| `DebugResultOverlay.cs` | 操作説明と決着の仮表示（IMGUI）。リザルト画面ができたら消す |
 
 **振り子の構造（崩さないこと）**
 
@@ -198,10 +220,28 @@ Input System の Action Asset は使わず、`Gamepad.all[playerIndex]` を直�
 
 **フェーズごとの画面**
 
-| フェーズ | SwordSelectUI | BattleHud | 対戦キャラ |
-|---|---|---|---|
-| Loading / Select | 表示 | 非表示 | 非アクティブ |
-| Battle / Result | 非表示 | 表示 | アクティブ |
+| フェーズ | SwordSelectUI | ForgeUI | BattleHud | 対戦キャラ |
+|---|---|---|---|---|
+| Loading / Select | 表示 | 非表示 | 非表示 | 非アクティブ |
+| ModeSelect / Forge | 非表示 | 表示 | 非表示 | 非アクティブ |
+| Battle / Result | 非表示 | 非表示 | 表示 | アクティブ |
+
+**起動からの流れ**
+
+```
+Loading → ModeSelect（2人同時に「既存の武器」か「新規作成」を選ぶ）
+            ↓ 新規を選んだ人だけ1人ずつ
+          Forge: WaitingUpload → Forging → Ready → Drawn → Confirm
+            ↓ 「この剣で戦う」で準備完了 / 「既存の武器」なら Select へ回る
+          Select（まだ決まっていない人だけが操作。決まった人は「準備完了」表示）
+            ↓ 2人とも決まった時点で
+          Battle
+```
+
+- 新着の剣は「錬成画面に入った時点で存在しなかった `id`」で判定する。サーバーとの合図が要らない
+- `uploadPollInterval`（0.7秒）でDBを見に行く。`minForgeSeconds`（3.2秒）は演出を最低限見せるための下限
+- QR画像は `Assets/StreamingAssets/qr.png`。無ければ枠内に断り書きが出る。`ForgeUI.qrImage` に直接差してもよい
+- 動作確認は `python tools/seed_sqlite.py --add 剣の名前` でアップロードを再現できる
 
 ## 7. 既知のハマりどころ
 

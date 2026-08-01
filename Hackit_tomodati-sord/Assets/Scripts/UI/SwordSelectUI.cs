@@ -244,8 +244,9 @@ public class SwordSelectUI : MonoBehaviour
             return;
         }
 
-        string p1 = _duel.IsSelected(0) ? $"けってい ({_duel.GetSelected(0).name})" : "せんたく中";
-        string p2 = _duel.IsSelected(1) ? $"けってい ({_duel.GetSelected(1).name})" : "せんたく中";
+        // 錬成で先に決まった人は「準備完了」として待たせる
+        string p1 = PlayerStatusText(0);
+        string p2 = PlayerStatusText(1);
 
         _status.text =
             $"1P: {p1}      2P: {p2}\n" +
@@ -253,11 +254,25 @@ public class SwordSelectUI : MonoBehaviour
             "キーボード(代用): 1P = A/D・F・G   2P = ←/→・.・/";
     }
 
+    string PlayerStatusText(int player)
+    {
+        if (!_duel.IsSelected(player)) return "せんたく中";
+
+        SwordData sword = _duel.GetSelected(player);
+        bool forged = _duel.GetMode(player) == DuelManager.PlayerMode.Create;
+        return (forged ? "準備完了 " : "けってい ") + $"({sword.name})";
+    }
+
     void UpdateCursors()
     {
         for (int i = 0; i < 2; i++)
         {
             if (_cursors[i] == null) continue;
+
+            // 錬成で決まった人はこの画面のカーソルを出さない
+            bool usesGrid = _duel.GetMode(i) != DuelManager.PlayerMode.Create || !_duel.IsSelected(i);
+            _cursors[i].gameObject.SetActive(usesGrid);
+            if (!usesGrid) continue;
 
             int index = Mathf.Clamp(_cursorIndex[i], 0, Mathf.Max(0, _cards.Count - 1));
             if (index < _cards.Count)

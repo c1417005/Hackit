@@ -112,6 +112,14 @@ public class SwordRepository : MonoBehaviour
             yield break;
         }
 
+        // DBに画像が入っていればそれを最優先で使う
+        Texture2D fromBlob = TakeBlobTexture(data.id);
+        if (fromBlob != null)
+        {
+            onDone?.Invoke(fromBlob);
+            yield break;
+        }
+
         if (useMock || string.IsNullOrEmpty(data.image_url))
         {
             onDone?.Invoke(GenerateSwordTexture(StableHash(data.id)));
@@ -176,6 +184,54 @@ public class SwordRepository : MonoBehaviour
 
     // ---------- SQLite ----------
 
+    /// <summary>id -> 画像PNGのバイト列。FetchSwordsFromSqlite で拾ったぶん。</summary>
+    readonly Dictionary<string, byte[]> _blobCache = new Dictionary<string, byte[]>();
+
+    /// <summary>DBに入っていた画像をテクスチャにする。無ければ null。</summary>
+    public Texture2D TakeBlobTexture(string swordId)
+    {
+        if (string.IsNullOrEmpty(swordId)) return null;
+        if (!_blobCache.TryGetValue(swordId, out byte[] png) || png == null) return null;
+
+        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+        if (!texture.LoadImage(png))
+        {
+            Debug.LogWarning($"[SwordRepository] 画像として読めなかった: {swordId}");
+            Destroy(texture);
+            return null;
+        }
+
+        texture.wrapMode = TextureWrapMode.Clamp;
+        return texture;
+    }
+
+    /// <summary>
+    /// knownIds に無い剣が入っていれば返す。Webからのアップロードを待つのに使う。
+    /// 複数増えていたら一番新しいものを返す。
+    /// </summary>
+    public SwordData FindNewSword(HashSet<string> knownIds)
+    {
+        if (ResolvedSource != Source.Sqlite) return null;
+
+        try
+        {
+            List<SwordData> all = FetchSwordsFromSqlite();
+            foreach (SwordData sword in all)   // created_at DESC で並んでいる
+            {
+                if (sword != null && !string.IsNullOrEmpty(sword.id) && !knownIds.Contains(sword.id))
+                {
+                    return sword;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[SwordRepository] 新着の確認に失敗: {e.Message}");
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// ローカルの SQLite から剣を読む。
     /// 開けない・0件・例外、どの場合もモックに落として onDone は必ず埋める。
@@ -194,14 +250,14 @@ public class SwordRepository : MonoBehaviour
         {
             using (var db = new Sqlite(path))
             {
+                // image は無いDBもあり得るので SELECT * で拾う
                 List<Sqlite.Row> rows = db.Query(
-                    "SELECT id, name, image_url, attack, defense, speed, reach, created_at" +
-                    " FROM swords ORDER BY created_at DESC LIMIT ?", fetchLimit);
+                    "SELECT * FROM swords ORDER BY created_at DESC LIMIT ?", fetchLimit);
 
                 var swords = new List<SwordData>(rows.Count);
                 foreach (Sqlite.Row row in rows)
                 {
-                    swords.Add(new SwordData
+                    var sword = new SwordData
                     {
                         id = row.GetString("id"),
                         name = row.GetString("name"),
@@ -212,7 +268,16 @@ public class SwordRepository : MonoBehaviour
                             row.GetInt("defense", 40),
                             row.GetInt("speed", 40),
                             row.GetFloat("reach", 1f)),
-                    });
+                    };
+
+                    // 画像がBLOBで入っていればここで持って帰る
+                    byte[] png = row.GetBlob("image");
+                    if (png != null && png.Length > 0)
+                    {
+                        _blobCache[sword.id] = png;
+                    }
+
+                    swords.Add(sword);
                 }
 
                 if (swords.Count == 0)

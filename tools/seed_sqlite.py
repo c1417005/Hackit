@@ -27,6 +27,8 @@ CREATE TABLE swords (
     id         TEXT PRIMARY KEY,
     name       TEXT    NOT NULL,
     image_url  TEXT    NOT NULL DEFAULT '',
+    -- 切り抜き済みPNGそのもの。サーバーがここに入れても、image_url 経由でも動く
+    image      BLOB,
     attack     INTEGER NOT NULL,
     defense    INTEGER NOT NULL,
     speed      INTEGER NOT NULL,
@@ -57,6 +59,53 @@ SWORDS = [
 ]
 
 
+def add_one(name: str, image_path: str | None = None) -> None:
+    """Webからのアップロードを1件ぶん再現する。錬成待ちの動作確認用。
+
+        python tools/seed_sqlite.py --add あたらしい剣
+        python tools/seed_sqlite.py --add あたらしい剣 path/to/sword.png
+
+    Unity 側は「起動時に無かった id」を新着として拾うので、
+    ゲームを錬成待ちにしたままこれを叩けば検知される。
+    """
+    import random
+    import uuid
+    from datetime import datetime, timezone
+
+    attack = random.randint(25, 60)
+    defense = random.randint(25, max(26, 121 - attack - 25))
+    speed = 120 - attack - defense
+    reach = round(random.uniform(0.8, 1.5), 2)
+
+    blob = None
+    if image_path:
+        with open(image_path, "rb") as f:
+            blob = f.read()
+
+    connection = sqlite3.connect(DB_PATH)
+    try:
+        connection.execute(
+            "INSERT INTO swords (id, name, image_url, image, attack, defense, speed, reach, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                f"web-{uuid.uuid4().hex[:8]}",
+                name,
+                "",
+                blob,
+                attack,
+                defense,
+                speed,
+                reach,
+                datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            ),
+        )
+        connection.commit()
+        print(f"追加: {name}  atk{attack}/def{defense}/spd{speed} reach{reach}"
+              f"  image={'あり' if blob else 'なし'}")
+    finally:
+        connection.close()
+
+
 def main() -> None:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     if os.path.exists(DB_PATH):
@@ -70,9 +119,9 @@ def main() -> None:
             # created_at をずらして order by が意味を持つようにしておく
             created_at = f"2026-08-01T12:{index:02d}:00Z"
             connection.execute(
-                "INSERT INTO swords (id, name, image_url, attack, defense, speed, reach, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (sword_id, name, "", attack, defense, speed, reach, created_at),
+                "INSERT INTO swords (id, name, image_url, image, attack, defense, speed, reach, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (sword_id, name, "", None, attack, defense, speed, reach, created_at),
             )
 
         connection.commit()
@@ -89,4 +138,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--add":
+        add_one(sys.argv[2] if len(sys.argv) > 2 else "テストの剣",
+                sys.argv[3] if len(sys.argv) > 3 else None)
+    else:
+        main()

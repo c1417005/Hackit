@@ -1,0 +1,8 @@
+{
+    "name": "TomodachiSword.Data",
+    "rootNamespace": "",
+    "references": [
+        "TomodachiSword.Core"
+    ],
+    "autoReferenced": true
+}

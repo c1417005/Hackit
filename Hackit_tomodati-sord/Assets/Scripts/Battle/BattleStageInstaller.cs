@@ -3,97 +3,68 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 /// <summary>
-/// シーンの組み立て役。空の GameObject に貼って Play するだけで一通り動く。
+/// 対戦する場を丸ごと組み立てて返す。地面・背景・カメラ・ライト・後処理・ファイター2体。
 ///
-/// 地面・カメラ・ファイター2体を作り、SwordRepository / DuelManager / 選択画面 / HUD を
-/// 生成して繋ぐ。プレハブもシーン配置も要らないので、複数人で触っても衝突しない。
-///
-/// 本番のシーンを作り込む段階になったら、ここでやっていることを
-/// そのままヒエラルキー上に置き換えれば良い。
+/// **戦闘担当のファイル。** 場の見た目と物理まわりはここで完結させる。
+/// 進行やUIのことは知らないので、他の担当と衝突しない。
 /// </summary>
-public class BattleTestBootstrap : MonoBehaviour
+public static class BattleStageInstaller
 {
-    [Header("配置")]
-    [Tooltip("中央から手の支点までの距離。広げすぎると剣が相手に届かない")]
-    public float spawnDistance = 1.15f;
-
-    [Tooltip("手の支点の高さ")]
-    public float anchorHeight = 3.4f;
-
-    // 手が y=3.4。斬撃中の刃先が上下へ振れても画面に入る位置。
-    public Vector3 cameraPosition = new Vector3(0f, 2.7f, -6.2f);
-
-    [Header("テスト用の結果表示（リザルト画面ができたら不要）")]
-    public bool showDebugHud = true;
-
-    [Tooltip("選択画面を飛ばして、いきなり先頭2本で対戦を始める（戦闘だけ試したい時用）")]
-    public bool skipSelect;
-
-    Fighter _p1;
-    Fighter _p2;
-    DuelManager _duel;
-
-    void Start()
+    /// <summary>組み上がった対戦の場。App がこれを他モジュールに配る。</summary>
+    public sealed class Rig
     {
-        // 旧振り子版のシーンには0.5がSerialize済みなので、新しい斬撃の間合いを最低値として保証する。
-        spawnDistance = Mathf.Max(spawnDistance, 1.15f);
+        public Fighter Player1;
+        public Fighter Player2;
+        public Camera Camera;
+    }
+
+    [System.Serializable]
+    public struct Config
+    {
+        [Tooltip("中央から手の支点までの距離。広げすぎると剣が相手に届かない")]
+        public float spawnDistance;
+
+        [Tooltip("手の支点の高さ")]
+        public float anchorHeight;
+
+        public Vector3 cameraPosition;
+
+        public static Config Default => new Config
+        {
+            spawnDistance = 1.15f,
+            anchorHeight = 3.4f,
+            cameraPosition = new Vector3(0f, 2.7f, -6.2f),
+        };
+    }
+
+    public static Rig Install(Config config)
+    {
+        // 旧振り子版のシーンには 0.5 が Serialize 済みなので、斬撃の間合いを最低値として保証する
+        float spawnDistance = Mathf.Max(config.spawnDistance, 1.15f);
 
         BuildGround();
         BuildBackdrop();
-        Camera cam = SetupCamera();
+
+        Camera camera = SetupCamera(config.cameraPosition);
         SetupLight();
-        SetupVisualQuality(cam);
+        SetupVisualQuality(camera);
 
-        _p1 = BuildFighter("Player1", 0, +1, -spawnDistance);
-        _p2 = BuildFighter("Player2", 1, -1, +spawnDistance);
-
-        var flowGo = new GameObject("DuelFlow");
-        var repository = flowGo.AddComponent<SwordRepository>();
-
-        _duel = flowGo.AddComponent<DuelManager>();
-        _duel.repository = repository;
-        _duel.player1 = _p1;
-        _duel.player2 = _p2;
-        _duel.spawnDistance = spawnDistance;
-        _duel.anchorHeight = anchorHeight;
-
-        var battleCamera = cam.gameObject.GetComponent<BattleCamera>();
-        if (battleCamera == null) battleCamera = cam.gameObject.AddComponent<BattleCamera>();
-        battleCamera.player1 = _p1;
-        battleCamera.player2 = _p2;
-
-        SwordSelectUI.Create(_duel);
-        BattleHud.Create(_p1, _p2).Bind(_duel);
-
-        if (skipSelect)
+        var rig = new Rig
         {
-            _duel.OnPhaseChanged += StartImmediatelyOnce;
-        }
+            Camera = camera,
+            Player1 = BuildFighter("Player1", 0, +1, -spawnDistance, config.anchorHeight),
+            Player2 = BuildFighter("Player2", 1, -1, +spawnDistance, config.anchorHeight),
+        };
+
+        BattleCamera battleCamera = camera.gameObject.GetComponent<BattleCamera>();
+        if (battleCamera == null) battleCamera = camera.gameObject.AddComponent<BattleCamera>();
+        battleCamera.player1 = rig.Player1;
+        battleCamera.player2 = rig.Player2;
+
+        return rig;
     }
 
-    /// <summary>選択画面に入った瞬間に対戦へ飛ばす。戦闘だけ確認したい時用。</summary>
-    void StartImmediatelyOnce(DuelManager.Phase phase)
-    {
-        if (phase != DuelManager.Phase.Select) return;
-        _duel.OnPhaseChanged -= StartImmediatelyOnce;
-        _duel.StartBattle();
-    }
-
-    void Update()
-    {
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb == null) return;
-
-        // 決着後、Rか決定ボタンで選択画面に戻る
-        if (_duel != null && _duel.CanLeaveResult && kb.rKey.wasPressedThisFrame)
-        {
-            _duel.EnterSelect();
-        }
-    }
-
-    // ---------- シーン組み立て ----------
-
-    void BuildGround()
+    static void BuildGround()
     {
         var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
         ground.name = "Ground";
@@ -102,11 +73,11 @@ public class BattleTestBootstrap : MonoBehaviour
         ApplyColor(ground.GetComponent<Renderer>(), new Color(0.28f, 0.30f, 0.34f));
     }
 
-    void BuildBackdrop()
+    static void BuildBackdrop()
     {
         var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
         wall.name = "ArenaBackdrop";
-        DestroyImmediate(wall.GetComponent<Collider>());
+        Object.DestroyImmediate(wall.GetComponent<Collider>());
         wall.transform.position = new Vector3(0f, 2.7f, 2.2f);
         wall.transform.localScale = new Vector3(13f, 7.5f, 0.2f);
         ApplyColor(wall.GetComponent<Renderer>(), new Color(0.025f, 0.035f, 0.075f));
@@ -116,11 +87,11 @@ public class BattleTestBootstrap : MonoBehaviour
         BuildGlowPillar("CenterGlow", 0f, new Color(1f, 0.68f, 0.12f), 0.035f);
     }
 
-    void BuildGlowPillar(string name, float x, Color color, float width = 0.10f)
+    static void BuildGlowPillar(string name, float x, Color color, float width = 0.10f)
     {
         var pillar = GameObject.CreatePrimitive(PrimitiveType.Cube);
         pillar.name = name;
-        DestroyImmediate(pillar.GetComponent<Collider>());
+        Object.DestroyImmediate(pillar.GetComponent<Collider>());
         pillar.transform.position = new Vector3(x, 2.7f, 2.05f);
         pillar.transform.localScale = new Vector3(width, 5.6f, 0.08f);
 
@@ -134,7 +105,7 @@ public class BattleTestBootstrap : MonoBehaviour
         renderer.sharedMaterial = material;
     }
 
-    Camera SetupCamera()
+    static Camera SetupCamera(Vector3 position)
     {
         Camera cam = Camera.main;
         if (cam == null)
@@ -145,7 +116,7 @@ public class BattleTestBootstrap : MonoBehaviour
         }
 
         // 3D空間だがカメラは横固定（実質2.5D）
-        cam.transform.position = cameraPosition;
+        cam.transform.position = position;
         cam.transform.rotation = Quaternion.identity;
         cam.fieldOfView = 45f;
         cam.clearFlags = CameraClearFlags.SolidColor;
@@ -154,9 +125,9 @@ public class BattleTestBootstrap : MonoBehaviour
         return cam;
     }
 
-    void SetupLight()
+    static void SetupLight()
     {
-        Light light = FindAnyObjectByType<Light>();
+        Light light = Object.FindAnyObjectByType<Light>();
         GameObject go;
         if (light == null)
         {
@@ -167,6 +138,7 @@ public class BattleTestBootstrap : MonoBehaviour
         {
             go = light.gameObject;
         }
+
         light.type = LightType.Directional;
         light.intensity = 1.35f;
         light.color = new Color(1f, 0.92f, 0.84f);
@@ -174,14 +146,14 @@ public class BattleTestBootstrap : MonoBehaviour
         go.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
     }
 
-    void SetupVisualQuality(Camera cam)
+    static void SetupVisualQuality(Camera cam)
     {
         UniversalAdditionalCameraData cameraData = cam.GetUniversalAdditionalCameraData();
         cameraData.renderPostProcessing = true;
         cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
         cameraData.antialiasingQuality = AntialiasingQuality.High;
 
-        Volume volume = FindAnyObjectByType<Volume>();
+        Volume volume = Object.FindAnyObjectByType<Volume>();
         if (volume == null)
         {
             var volumeObject = new GameObject("BattlePostProcess");
@@ -219,7 +191,7 @@ public class BattleTestBootstrap : MonoBehaviour
     /// 手の支点を1つ作り、そこに Fighter を仕込む。
     /// GameObject の原点がそのまま手首の回転中心になる。
     /// </summary>
-    Fighter BuildFighter(string name, int playerIndex, int facing, float x)
+    static Fighter BuildFighter(string name, int playerIndex, int facing, float x, float anchorHeight)
     {
         var go = new GameObject(name);
         go.transform.position = new Vector3(x, anchorHeight, 0f);
@@ -238,38 +210,5 @@ public class BattleTestBootstrap : MonoBehaviour
         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
         if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
         renderer.sharedMaterial = mat;
-    }
-
-    // ---------- 仮のリザルト表示（未実装4でちゃんとしたものに置き換える） ----------
-
-    void OnGUI()
-    {
-        if (!showDebugHud || _duel == null) return;
-
-        if (_duel.Current == DuelManager.Phase.Battle)
-        {
-            var help = new GUIStyle(GUI.skin.label) { fontSize = 13 };
-            GUI.Label(new Rect(20, 120, 900, 60),
-                "□ = 縦斬り   △ = 横斬り   L1 = ガード\n" +
-                "キーボード: 1P = F / R / G   2P = . / , / /",
-                help);
-            return;
-        }
-
-        if (_duel.Current != DuelManager.Phase.Result || _duel.Winner == null) return;
-
-        var style = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 48,
-            alignment = TextAnchor.MiddleCenter,
-        };
-        string label = (_duel.Winner.playerIndex == 0 ? "1P" : "2P") + " WIN";
-        GUI.Label(new Rect(0, Screen.height * 0.32f, Screen.width, 80), label, style);
-
-        if (_duel.CanLeaveResult)
-        {
-            var sub = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter };
-            GUI.Label(new Rect(0, Screen.height * 0.32f + 80, Screen.width, 40), "R キーで剣えらびに戻る", sub);
-        }
     }
 }
