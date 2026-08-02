@@ -82,21 +82,31 @@ public static class BattleStageInstaller
         ground.name = "Ground";
         ground.transform.position = new Vector3(0f, -0.5f, 0f);
         ground.transform.localScale = new Vector3(24f, 1f, 4f);
-        ApplyColor(ground.GetComponent<Renderer>(), new Color(0.28f, 0.30f, 0.34f));
+        ApplyColor(ground.GetComponent<Renderer>(), new Color(0.075f, 0.09f, 0.14f));
     }
 
     static void BuildBackdrop()
     {
-        var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        var wall = GameObject.CreatePrimitive(PrimitiveType.Quad);
         wall.name = "ArenaBackdrop";
         Object.DestroyImmediate(wall.GetComponent<Collider>());
         wall.transform.position = new Vector3(0f, 2.7f, 2.2f);
-        wall.transform.localScale = new Vector3(13f, 7.5f, 0.2f);
-        ApplyColor(wall.GetComponent<Renderer>(), new Color(0.025f, 0.035f, 0.075f));
+        wall.transform.localScale = new Vector3(13.5f, 7.6f, 1f);
 
-        BuildGlowPillar("P1Glow", -4.7f, new Color(0.08f, 0.42f, 1f));
-        BuildGlowPillar("P2Glow", 4.7f, new Color(1f, 0.16f, 0.08f));
-        BuildGlowPillar("CenterGlow", 0f, new Color(1f, 0.68f, 0.12f), 0.035f);
+        Texture2D campus = Resources.Load<Texture2D>("Battle/KanazawaInstituteOfTechnologyBackground");
+        if (campus != null)
+        {
+            campus.wrapMode = TextureWrapMode.Clamp;
+            ApplyTexture(wall.GetComponent<Renderer>(), campus);
+        }
+        else
+        {
+            Debug.LogWarning("[BattleStageInstaller] KIT campus background was not found in Resources/Battle.");
+            ApplyColor(wall.GetComponent<Renderer>(), new Color(0.025f, 0.035f, 0.075f));
+            BuildGlowPillar("P1Glow", -4.7f, new Color(0.08f, 0.42f, 1f));
+            BuildGlowPillar("P2Glow", 4.7f, new Color(1f, 0.16f, 0.08f));
+            BuildGlowPillar("CenterGlow", 0f, new Color(1f, 0.68f, 0.12f), 0.035f);
+        }
     }
 
     static void BuildGlowPillar(string name, float x, Color color, float width = 0.10f)
@@ -236,5 +246,25 @@ public static class BattleStageInstaller
         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
         if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
         renderer.sharedMaterial = mat;
+    }
+
+    static void ApplyTexture(Renderer renderer, Texture texture)
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit")
+                     ?? Shader.Find("Unlit/Texture")
+                     ?? Shader.Find("Standard");
+        if (shader == null)
+        {
+            Debug.LogError("[BattleStageInstaller] No compatible textured stage shader was found.");
+            return;
+        }
+
+        var material = new Material(shader);
+        material.mainTexture = texture;
+        if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", texture);
+        if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", Color.white);
+        if (material.HasProperty("_Color")) material.SetColor("_Color", Color.white);
+        if (material.HasProperty("_Cull")) material.SetFloat("_Cull", 0f);
+        renderer.sharedMaterial = material;
     }
 }
