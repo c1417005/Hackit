@@ -218,7 +218,21 @@ public static class BattleStageInstaller
 
     static void ApplyColor(Renderer renderer, Color color)
     {
-        var mat = new Material(renderer.sharedMaterial);
+        // CreatePrimitive uses Unity's built-in default material. Cloning it works
+        // in some Editor configurations, but becomes the pink error shader in a
+        // URP standalone build, so always create a pipeline-compatible material.
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit")
+                     ?? Shader.Find("Universal Render Pipeline/Lit")
+                     ?? Shader.Find("Unlit/Color")
+                     ?? Shader.Find("Standard");
+
+        if (shader == null)
+        {
+            Debug.LogError("[BattleStageInstaller] No compatible stage shader was found.");
+            return;
+        }
+
+        var mat = new Material(shader);
         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
         if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
         renderer.sharedMaterial = mat;

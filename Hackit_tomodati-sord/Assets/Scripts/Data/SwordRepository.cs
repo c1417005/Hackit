@@ -50,7 +50,22 @@ public class SwordRepository : MonoBehaviour
     /// <summary>StreamingAssets 内の DB の絶対パス。</summary>
     public string SqlitePath => Path.Combine(Application.streamingAssetsPath, sqliteFileName);
 
-    Source ResolvedSource => useMock ? Source.Mock : source;
+    Source ResolvedSource
+    {
+        get
+        {
+            if (useMock) return Source.Mock;
+
+#if !UNITY_EDITOR
+            // Windows標準のwinsqlite3をMonoから直接呼ぶと、読込完了後に
+            // ネイティブクラッシュする環境がある。展示用PlayerではSQLiteを避け、
+            // Supabase設定時だけ通信を使い、それまでは安全なモックで起動する。
+            if (source == Source.Sqlite) return Source.Mock;
+#endif
+
+            return source;
+        }
+    }
 
     /// <summary>剣一覧を取得する。失敗してもモックを返すので onDone は必ず呼ばれる。</summary>
     public IEnumerator FetchSwords(Action<List<SwordData>> onDone)

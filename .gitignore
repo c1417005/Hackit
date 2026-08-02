@@ -60,5 +60,8 @@ crashlytics-build.properties
 .codex/
 .mcp.json
 
+# Local Windows player builds
+/Builds/
+
 # ---- 注意 ----
 # *.meta は Unity が参照を保つのに必須。絶対に無視しないこと
