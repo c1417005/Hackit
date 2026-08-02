@@ -21,14 +21,19 @@ public class SwordSelectUI : MonoBehaviour
     Text _title;
     Text _footer;
     readonly RectTransform[] _panels = new RectTransform[2];
+    readonly RawImage[] _panelBackgrounds = new RawImage[2];
+    readonly RawImage[] _portraitBackgrounds = new RawImage[2];
     readonly RawImage[] _portraits = new RawImage[2];
     readonly AspectRatioFitter[] _portraitFitters = new AspectRatioFitter[2];
     readonly Text[] _names = new Text[2];
     readonly Text[] _states = new Text[2];
     readonly RawImage[,] _barFills = new RawImage[2, 3];
     readonly Text[,] _barLabels = new Text[2, 3];
+    readonly float[,] _targetBarRatios = new float[2, 3];
     readonly int[] _cursor = new int[2];
     readonly bool[] _stickLatched = new bool[2];
+    readonly float[] _selectionBumpUntil = new float[2];
+    AudioSource _sfxSource;
     static Font _font;
 
     public static SwordSelectUI Create(DuelManager duel)
@@ -42,6 +47,7 @@ public class SwordSelectUI : MonoBehaviour
     void Init(DuelManager duel)
     {
         _duel = duel;
+        _sfxSource = UiSoundPlayer.AddSource(gameObject);
         _canvas = GetComponent<Canvas>();
         _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         _canvas.sortingOrder = 10;
@@ -95,6 +101,18 @@ public class SwordSelectUI : MonoBehaviour
         panel.offsetMax = new Vector2(-42f, -115f);
         _panels[player] = panel;
 
+        RawImage panelBg = CreateRawImage(panel, "PanelBackground", new Color(0.045f, 0.065f, 0.11f, 0.96f));
+        Stretch(panelBg.rectTransform);
+        panelBg.transform.SetAsFirstSibling();
+        _panelBackgrounds[player] = panelBg;
+
+        RawImage sideAccent = CreateRawImage(panel, "PlayerAccent", PlayerColors[player]);
+        sideAccent.rectTransform.anchorMin = new Vector2(0f, 1f);
+        sideAccent.rectTransform.anchorMax = new Vector2(1f, 1f);
+        sideAccent.rectTransform.pivot = new Vector2(0.5f, 1f);
+        sideAccent.rectTransform.anchoredPosition = Vector2.zero;
+        sideAccent.rectTransform.sizeDelta = new Vector2(0f, 7f);
+
         Text playerLabel = CreateText(panel, "PlayerLabel", 38, TextAnchor.MiddleCenter, PlayerColors[player]);
         SetRect(playerLabel.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, new Vector2(0f, 54f));
         playerLabel.rectTransform.pivot = new Vector2(0.5f, 1f);
@@ -106,6 +124,7 @@ public class SwordSelectUI : MonoBehaviour
         RawImage portraitBg = CreateRawImage(panel, "PortraitBackground", new Color(0.075f, 0.10f, 0.17f));
         SetRect(portraitBg.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -112f), new Vector2(650f, 430f));
         portraitBg.rectTransform.pivot = new Vector2(0.5f, 1f);
+        _portraitBackgrounds[player] = portraitBg;
 
         RawImage portrait = CreateRawImage(portraitBg.rectTransform, "PersonImage", Color.white);
         StretchWithMargin(portrait.rectTransform, 18f);
@@ -185,6 +204,11 @@ public class SwordSelectUI : MonoBehaviour
             ShowSword(player, sword);
             _states[player].text = _duel.IsSelected(player) ? "READY!　○で選び直す" : $"{_cursor[player] + 1} / {count}　×で決定";
             _states[player].color = _duel.IsSelected(player) ? new Color(1f, 0.84f, 0.25f) : PlayerColors[player];
+
+            Color panelColor = _duel.IsSelected(player)
+                ? new Color(0.12f, 0.105f, 0.045f, 0.98f)
+                : new Color(0.045f, 0.065f, 0.11f, 0.96f);
+            _panelBackgrounds[player].color = panelColor;
         }
 
         _footer.text = "十字キー ← →：選択　　×：決定　　○：取り消し";
@@ -204,7 +228,7 @@ public class SwordSelectUI : MonoBehaviour
         for (int stat = 0; stat < 3; stat++)
         {
             float ratio = Mathf.Clamp01(values[stat] / maxima[stat]);
-            _barFills[player, stat].rectTransform.anchorMax = new Vector2(ratio, 1f);
+            _targetBarRatios[player, stat] = ratio;
             string value = stat == 2 ? values[stat].ToString("0.0") : Mathf.RoundToInt(values[stat]).ToString();
             _barLabels[player, stat].text = $"{StatLabels[stat]}    {value}";
         }
@@ -220,10 +244,53 @@ public class SwordSelectUI : MonoBehaviour
             {
                 int count = _duel.Swords.Count;
                 _cursor[player] = (_cursor[player] + step + count) % count;
+                _selectionBumpUntil[player] = Time.unscaledTime + 0.16f;
+                UiSoundPlayer.Move(_sfxSource);
                 RefreshAll();
             }
-            if (decide && !_duel.IsSelected(player)) _duel.SelectSword(player, _duel.Swords[_cursor[player]]);
-            else if (cancel && _duel.IsSelected(player)) _duel.CancelSelection(player);
+            if (decide && !_duel.IsSelected(player))
+            {
+                UiSoundPlayer.Confirm(_sfxSource);
+                _duel.SelectSword(player, _duel.Swords[_cursor[player]]);
+            }
+            else if (cancel && _duel.IsSelected(player))
+            {
+                UiSoundPlayer.Cancel(_sfxSource);
+                _duel.CancelSelection(player);
+            }
+        }
+
+        AnimateFeedback();
+    }
+
+    void AnimateFeedback()
+    {
+        float dt = Time.unscaledDeltaTime;
+        for (int player = 0; player < 2; player++)
+        {
+            bool bumped = Time.unscaledTime < _selectionBumpUntil[player];
+            bool ready = _duel.IsSelected(player);
+            float pulse = ready ? 1f + Mathf.Sin(Time.unscaledTime * 5f) * 0.008f : 1f;
+            float targetScale = bumped ? 1.025f : pulse;
+            _panels[player].localScale = Vector3.Lerp(
+                _panels[player].localScale,
+                new Vector3(targetScale, targetScale, 1f),
+                1f - Mathf.Exp(-18f * dt));
+
+            Color portraitColor = ready
+                ? new Color(0.24f, 0.20f, 0.07f)
+                : Color.Lerp(new Color(0.065f, 0.085f, 0.14f), PlayerColors[player] * 0.34f, 0.28f);
+            _portraitBackgrounds[player].color = Color.Lerp(
+                _portraitBackgrounds[player].color,
+                portraitColor,
+                1f - Mathf.Exp(-10f * dt));
+
+            for (int stat = 0; stat < 3; stat++)
+            {
+                RectTransform fill = _barFills[player, stat].rectTransform;
+                float shown = Mathf.Lerp(fill.anchorMax.x, _targetBarRatios[player, stat], 1f - Mathf.Exp(-12f * dt));
+                fill.anchorMax = new Vector2(shown, 1f);
+            }
         }
     }
 

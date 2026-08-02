@@ -56,8 +56,10 @@ public class ForgeUI : MonoBehaviour
     Text _revealPrompt;
     WavyText _revealHeadline;
     Text _forgeOwner;
+    Text _forgeProgress;
     RawImage _revealFlash;
     AudioSource _voiceSource;
+    AudioSource _sfxSource;
     float _drawStarted = -1f;
 
     public static ForgeUI Create(DuelManager duel)
@@ -73,6 +75,7 @@ public class ForgeUI : MonoBehaviour
         _duel = duel;
         _voiceSource = gameObject.AddComponent<AudioSource>();
         _voiceSource.playOnAwake = false;
+        _sfxSource = UiSoundPlayer.AddSource(gameObject);
 
         _canvas = GetComponent<Canvas>();
         _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -208,6 +211,11 @@ public class ForgeUI : MonoBehaviour
         _forgeOwner.rectTransform.anchorMax = new Vector2(0.5f, 1f);
         _forgeOwner.rectTransform.anchoredPosition = new Vector2(0f, -70f);
 
+        _forgeProgress = CreateText(_forgeRoot, "Progress", 25, TextAnchor.MiddleCenter, new Color(1f, 0.82f, 0.28f));
+        _forgeProgress.rectTransform.anchorMin = new Vector2(0.5f, 1f);
+        _forgeProgress.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+        _forgeProgress.rectTransform.anchoredPosition = new Vector2(0f, -118f);
+
         // --- QR待ち ---
         _qrPanel = CreateSubPanel(_forgeRoot, "QrPanel");
 
@@ -326,6 +334,7 @@ public class ForgeUI : MonoBehaviour
 
         if (step == DuelManager.ForgeStep.WaitingUpload)
         {
+            _forgeProgress.text = "1 / 3　QRで友達を登録";
             Texture2D qr = LoadQrTexture();
             _qrView.texture = qr;
             _qrView.color = qr != null ? Color.white : new Color(0.13f, 0.15f, 0.20f);
@@ -333,10 +342,13 @@ public class ForgeUI : MonoBehaviour
         }
         else if (step == DuelManager.ForgeStep.Forging)
         {
+            UiSoundPlayer.Forge(_sfxSource);
+            _forgeProgress.text = "2 / 3　友達の剣を錬成中";
             _forgingText.SetText("剣 を 錬 成 中 . . .");
         }
         else if (step == DuelManager.ForgeStep.Ready)
         {
+            _forgeProgress.text = "3 / 3　剣を引き抜け！";
             // まだ剣は見せない。抜くまでが溜め
             _revealHeadline.SetText("剣ができた");
             _revealSword.gameObject.SetActive(false);
@@ -348,6 +360,8 @@ public class ForgeUI : MonoBehaviour
         }
         else if (step == DuelManager.ForgeStep.Drawn)
         {
+            UiSoundPlayer.DrawSword(_sfxSource);
+            _forgeProgress.text = "NEW FRIEND!";
             SwordData sword = _duel.ForgedSword;
             _revealHeadline.SetText("新しい友達の出現！");
 
@@ -382,6 +396,7 @@ public class ForgeUI : MonoBehaviour
         }
         else if (step == DuelManager.ForgeStep.Confirm)
         {
+            _forgeProgress.text = "READY TO FIGHT";
             _revealHeadline.SetText("この剣で戦う？");
             _revealPrompt.text = "×  この剣で戦う          ○  既存の武器からえらぶ";
         }
@@ -487,11 +502,13 @@ public class ForgeUI : MonoBehaviour
             if (step != 0)
             {
                 _modeIndex[player] = Mathf.Clamp(_modeIndex[player] + step, 0, ModeLabels.Length - 1);
+                UiSoundPlayer.Move(_sfxSource);
                 UpdateModeCursors();
             }
 
             if (decide)
             {
+                UiSoundPlayer.Confirm(_sfxSource);
                 _duel.SetMode(player, _modeIndex[player] == 0
                     ? DuelManager.PlayerMode.Existing
                     : DuelManager.PlayerMode.Create);
@@ -510,12 +527,24 @@ public class ForgeUI : MonoBehaviour
         {
             case DuelManager.ForgeStep.Ready:
             case DuelManager.ForgeStep.Drawn:
-                if (decide) _duel.AdvanceForge();
+                if (decide)
+                {
+                    UiSoundPlayer.Confirm(_sfxSource);
+                    _duel.AdvanceForge();
+                }
                 break;
 
             case DuelManager.ForgeStep.Confirm:
-                if (decide) _duel.ConfirmForgedSword();
-                else if (cancel) _duel.RejectForgedSword();
+                if (decide)
+                {
+                    UiSoundPlayer.Confirm(_sfxSource);
+                    _duel.ConfirmForgedSword();
+                }
+                else if (cancel)
+                {
+                    UiSoundPlayer.Cancel(_sfxSource);
+                    _duel.RejectForgedSword();
+                }
                 break;
         }
     }
