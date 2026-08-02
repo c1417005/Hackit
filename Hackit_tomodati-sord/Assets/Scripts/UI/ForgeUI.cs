@@ -624,8 +624,13 @@ public class ForgeUI : MonoBehaviour
 
     static void CreateBackdrop(Transform parent)
     {
-        var dim = CreateRawImage(parent, "Dim", new Color(0.03f, 0.04f, 0.07f, 0.98f));
-        Stretch(dim.rectTransform);
+        var background = CreateRawImage(parent, "DigitalForgeBackground", Color.white);
+        background.texture = Resources.Load<Texture2D>("UI/DigitalForgeBackground");
+        background.uvRect = new Rect(0.062f, 0f, 0.876f, 1f);
+        Stretch(background.rectTransform);
+
+        var veil = CreateRawImage(parent, "Dim", new Color(0.006f, 0.012f, 0.025f, 0.52f));
+        Stretch(veil.rectTransform);
     }
 
     static void Stretch(RectTransform rect)
@@ -668,8 +673,8 @@ public class ForgeUI : MonoBehaviour
         text.verticalOverflow = VerticalWrapMode.Overflow;
 
         var outline = go.AddComponent<Outline>();
-        outline.effectColor = new Color(0f, 0f, 0f, 0.85f);
-        outline.effectDistance = new Vector2(2f, -2f);
+        outline.effectColor = new Color(0f, 0f, 0f, 0.60f);
+        outline.effectDistance = new Vector2(1f, -1f);
 
         return text;
     }
@@ -678,7 +683,8 @@ public class ForgeUI : MonoBehaviour
     {
         if (_font == null)
         {
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = Font.CreateDynamicFontFromOSFont(new[] { "Yu Gothic UI", "Yu Gothic", "Meiryo UI", "Meiryo" }, 48);
+            if (_font == null) _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         }
         return _font;
     }

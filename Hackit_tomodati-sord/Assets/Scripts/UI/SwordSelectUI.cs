@@ -72,20 +72,38 @@ public class SwordSelectUI : MonoBehaviour
 
     void BuildScreen()
     {
-        RawImage dim = CreateRawImage(transform, "Background", new Color(0.025f, 0.035f, 0.075f, 0.99f));
-        Stretch(dim.rectTransform);
+        RawImage background = CreateRawImage(transform, "DigitalForgeBackground", Color.white);
+        background.texture = Resources.Load<Texture2D>("UI/DigitalForgeBackground");
+        background.uvRect = new Rect(0.062f, 0f, 0.876f, 1f);
+        Stretch(background.rectTransform);
 
-        _title = CreateText(transform, "Title", 56, TextAnchor.MiddleCenter, new Color(1f, 0.84f, 0.28f));
-        SetRect(_title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -24f), new Vector2(0f, 74f));
+        RawImage veil = CreateRawImage(transform, "BackgroundVeil", new Color(0.008f, 0.015f, 0.03f, 0.42f));
+        Stretch(veil.rectTransform);
+
+        RawImage titlePlate = CreateRawImage(transform, "TitlePlate", new Color(0.018f, 0.028f, 0.048f, 0.90f));
+        SetRect(titlePlate.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, new Vector2(0f, 105f));
+        titlePlate.rectTransform.pivot = new Vector2(0.5f, 1f);
+
+        Text section = CreateText(transform, "Section", 17, TextAnchor.MiddleCenter, new Color(0.54f, 0.64f, 0.74f));
+        SetRect(section.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -9f), new Vector2(0f, 26f));
+        section.rectTransform.pivot = new Vector2(0.5f, 1f);
+        section.text = "TOMODACHI SWORD  //  ARMORY";
+
+        _title = CreateText(transform, "Title", 48, TextAnchor.MiddleCenter, new Color(0.94f, 0.96f, 1f));
+        SetRect(_title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -31f), new Vector2(0f, 64f));
         _title.rectTransform.pivot = new Vector2(0.5f, 1f);
 
-        RawImage divider = CreateRawImage(transform, "Divider", new Color(1f, 0.82f, 0.25f, 0.65f));
-        SetRect(divider.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(4f, 820f));
+        RawImage divider = CreateRawImage(transform, "Divider", new Color(0.85f, 0.55f, 0.20f, 0.34f));
+        SetRect(divider.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -8f), new Vector2(2f, 790f));
 
         BuildPlayerPanel(0, new Vector2(0f, 0f), new Vector2(0.5f, 1f));
         BuildPlayerPanel(1, new Vector2(0.5f, 0f), new Vector2(1f, 1f));
 
-        _footer = CreateText(transform, "Footer", 25, TextAnchor.MiddleCenter, new Color(0.84f, 0.90f, 1f));
+        RawImage footerPlate = CreateRawImage(transform, "FooterPlate", new Color(0.012f, 0.022f, 0.04f, 0.92f));
+        SetRect(footerPlate.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 74f));
+        footerPlate.rectTransform.pivot = new Vector2(0.5f, 0f);
+
+        _footer = CreateText(transform, "Footer", 22, TextAnchor.MiddleCenter, new Color(0.68f, 0.76f, 0.84f));
         SetRect(_footer.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 14f), new Vector2(0f, 58f));
         _footer.rectTransform.pivot = new Vector2(0.5f, 0f);
     }
@@ -101,9 +119,13 @@ public class SwordSelectUI : MonoBehaviour
         panel.offsetMax = new Vector2(-42f, -115f);
         _panels[player] = panel;
 
-        RawImage panelBg = CreateRawImage(panel, "PanelBackground", new Color(0.045f, 0.065f, 0.11f, 0.96f));
-        Stretch(panelBg.rectTransform);
-        panelBg.transform.SetAsFirstSibling();
+        RawImage panelFrame = CreateRawImage(panel, "PanelFrame", new Color(PlayerColors[player].r, PlayerColors[player].g, PlayerColors[player].b, 0.48f));
+        Stretch(panelFrame.rectTransform);
+        panelFrame.transform.SetAsFirstSibling();
+
+        RawImage panelBg = CreateRawImage(panel, "PanelBackground", new Color(0.018f, 0.032f, 0.055f, 0.91f));
+        StretchWithMargin(panelBg.rectTransform, 2f);
+        panelBg.transform.SetSiblingIndex(1);
         _panelBackgrounds[player] = panelBg;
 
         RawImage sideAccent = CreateRawImage(panel, "PlayerAccent", PlayerColors[player]);
@@ -121,7 +143,7 @@ public class SwordSelectUI : MonoBehaviour
         _names[player] = CreateText(panel, "SwordName", 35, TextAnchor.MiddleCenter, Color.white);
         SetRect(_names[player].rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -58f), new Vector2(0f, 48f));
 
-        RawImage portraitBg = CreateRawImage(panel, "PortraitBackground", new Color(0.075f, 0.10f, 0.17f));
+        RawImage portraitBg = CreateRawImage(panel, "PortraitBackground", new Color(0.025f, 0.045f, 0.075f, 0.96f));
         SetRect(portraitBg.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -112f), new Vector2(650f, 430f));
         portraitBg.rectTransform.pivot = new Vector2(0.5f, 1f);
         _portraitBackgrounds[player] = portraitBg;
@@ -137,24 +159,17 @@ public class SwordSelectUI : MonoBehaviour
         SetRect(arrows.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -310f), new Vector2(0f, 70f));
         arrows.text = "〈                                      〉";
 
-        Color[] colors =
-        {
-            new Color(1f, 0.28f, 0.20f),
-            new Color(0.22f, 0.95f, 0.48f),
-            new Color(1f, 0.78f, 0.20f),
-        };
-
         for (int stat = 0; stat < 3; stat++)
         {
             float y = -590f - stat * 82f;
-            Text label = CreateText(panel, StatLabels[stat], 30, TextAnchor.MiddleLeft, Color.white);
+            Text label = CreateText(panel, StatLabels[stat], 27, TextAnchor.MiddleLeft, new Color(0.84f, 0.89f, 0.95f));
             SetRect(label.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y), new Vector2(560f, 38f));
             _barLabels[player, stat] = label;
 
-            RawImage track = CreateRawImage(panel, StatLabels[stat] + "Track", new Color(0.18f, 0.20f, 0.26f));
-            SetRect(track.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y - 35f), new Vector2(560f, 25f));
+            RawImage track = CreateRawImage(panel, StatLabels[stat] + "Track", new Color(0.12f, 0.16f, 0.21f, 0.92f));
+            SetRect(track.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y - 32f), new Vector2(560f, 17f));
 
-            RawImage fill = CreateRawImage(track.rectTransform, "Fill", colors[stat]);
+            RawImage fill = CreateRawImage(track.rectTransform, "Fill", PlayerColors[player]);
             fill.rectTransform.anchorMin = Vector2.zero;
             fill.rectTransform.anchorMax = Vector2.one;
             fill.rectTransform.pivot = new Vector2(0f, 0.5f);
@@ -352,8 +367,8 @@ public class SwordSelectUI : MonoBehaviour
         text.horizontalOverflow = HorizontalWrapMode.Overflow;
         text.verticalOverflow = VerticalWrapMode.Overflow;
         Outline outline = go.GetComponent<Outline>();
-        outline.effectColor = new Color(0f, 0f, 0f, 0.8f);
-        outline.effectDistance = new Vector2(1.5f, -1.5f);
+        outline.effectColor = new Color(0f, 0f, 0f, 0.58f);
+        outline.effectDistance = new Vector2(1f, -1f);
         return text;
     }
 
