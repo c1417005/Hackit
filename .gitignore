@@ -92,3 +92,7 @@ images/
 
 # ---- 注意 ----
 # *.meta は Unity が参照を保つのに必須。絶対に無視しないこと
+
+# QRはサーバーのIPを焼き込んだ生成物。IPはマシンごとに変わるので共有しない。
+# 各自 `python tools/make_qr.py <IP>` で作り直す
+Hackit_tomodati-sord/Assets/StreamingAssets/qr.png
