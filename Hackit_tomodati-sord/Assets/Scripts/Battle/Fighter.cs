@@ -97,11 +97,13 @@ public class Fighter : MonoBehaviour
     Transform _swordVisualPivot;
     GameObject _swordRoot;
     Renderer _bladeRenderer;
+    Transform _bladeTransform;
+    Vector3 _bladeSwordLocalPosition;
+    Quaternion _bladeSwordLocalRotation;
     Color _bladeBaseColor = Color.white;
     SwordBuilder.Metrics _metrics;
     SwordAttackHitbox _hitbox;
     BoxCollider _attackBox;
-    GameObject _axeHead;
     TrailRenderer _trail;
     AudioSource _modelVoiceSource;
     AudioClip _modelMotionVoice;
@@ -321,7 +323,13 @@ public class Fighter : MonoBehaviour
         visualPivotObject.transform.SetParent(_swordRoot.transform, false);
         _swordVisualPivot = visualPivotObject.transform;
         Transform blade = _swordRoot.transform.Find("Blade");
-        if (blade != null) blade.SetParent(_swordVisualPivot, false);
+        _bladeTransform = blade;
+        if (_bladeTransform != null)
+        {
+            _bladeTransform.SetParent(_swordVisualPivot, false);
+            _bladeSwordLocalPosition = _bladeTransform.localPosition;
+            _bladeSwordLocalRotation = _bladeTransform.localRotation;
+        }
 
         var hitboxObject = new GameObject("Hitbox");
         hitboxObject.transform.SetParent(_swordRoot.transform, false);
@@ -342,19 +350,6 @@ public class Fighter : MonoBehaviour
         _hitbox = hitboxObject.AddComponent<SwordAttackHitbox>();
         _hitbox.owner = this;
         _hitbox.Configure(box);
-
-        _axeHead = new GameObject("AxeHead");
-        _axeHead.transform.SetParent(_swordVisualPivot, false);
-        _axeHead.transform.localPosition = new Vector3(0f, _metrics.tipDistance * 0.78f, 0.025f);
-        CreatePart("AxeBladeLeft", PrimitiveType.Cube, _axeHead.transform,
-            new Vector3(-_metrics.bladeWidth * 0.72f, 0f, 0f),
-            new Vector3(_metrics.bladeWidth * 1.35f, _metrics.bladeLength * 0.22f, 0.08f),
-            new Color(1f, 0.62f, 0.08f));
-        CreatePart("AxeBladeRight", PrimitiveType.Cube, _axeHead.transform,
-            new Vector3(_metrics.bladeWidth * 0.72f, 0f, 0f),
-            new Vector3(_metrics.bladeWidth * 1.35f, _metrics.bladeLength * 0.22f, 0.08f),
-            new Color(1f, 0.78f, 0.18f));
-        _axeHead.SetActive(false);
 
         var trailObject = new GameObject("TipTrail");
         trailObject.transform.SetParent(_swordVisualPivot, false);
@@ -501,24 +496,14 @@ public class Fighter : MonoBehaviour
 
     void ApplyModeVisual()
     {
-        if (_axeHead != null) _axeHead.SetActive(CurrentMode == WeaponMode.Axe);
+        ApplyGripModeVisual();
 
         if (_attackBox != null)
         {
-            if (CurrentMode == WeaponMode.Axe)
-            {
-                _attackBox.transform.localPosition = new Vector3(0f, _metrics.tipDistance * 0.78f, 0f);
-                _attackBox.size = new Vector3(
-                    Mathf.Max(0.52f, _metrics.bladeWidth * 2.7f),
-                    _metrics.bladeLength * 0.25f,
-                    0.38f);
-            }
-            else
-            {
-                float length = _metrics.tipDistance;
-                _attackBox.transform.localPosition = new Vector3(0f, length * 0.5f, 0f);
-                _attackBox.size = new Vector3(Mathf.Max(0.22f, _metrics.bladeWidth), length, 0.34f);
-            }
+            // 剣・アックスとも、握りから先端までを覆う同じ全長判定を使う。
+            float length = _metrics.tipDistance;
+            _attackBox.transform.localPosition = new Vector3(0f, length * 0.5f, 0f);
+            _attackBox.size = new Vector3(Mathf.Max(0.22f, _metrics.bladeWidth), length, 0.34f);
         }
 
         if (_trail == null) return;
@@ -530,6 +515,26 @@ public class Fighter : MonoBehaviour
         _trail.startWidth = CurrentMode == WeaponMode.Axe
             ? Mathf.Max(0.14f, _metrics.bladeWidth * 0.82f)
             : Mathf.Max(0.08f, _metrics.bladeWidth * 0.55f);
+    }
+
+    void ApplyGripModeVisual()
+    {
+        if (_bladeTransform == null) return;
+
+        if (CurrentMode == WeaponMode.Axe)
+        {
+            // 剣モードでは頭が手元、足が先端。アックスでは描画だけを全長の中で反転し、
+            // 足を手元、頭を先端にする。親のVisualDepthPivotは攻撃演出専用のまま維持する。
+            Quaternion reverse = Quaternion.Euler(0f, 0f, 180f);
+            _bladeTransform.localPosition = Vector3.up * _metrics.tipDistance
+                                          + reverse * _bladeSwordLocalPosition;
+            _bladeTransform.localRotation = reverse * _bladeSwordLocalRotation;
+        }
+        else
+        {
+            _bladeTransform.localPosition = _bladeSwordLocalPosition;
+            _bladeTransform.localRotation = _bladeSwordLocalRotation;
+        }
     }
 
     public bool TryAttack(AttackKind kind)
