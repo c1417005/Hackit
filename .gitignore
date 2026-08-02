@@ -29,6 +29,7 @@ ProfilerCaptures/
 *.mdb
 *.opendb
 *.VC.db
+*.pyc
 
 # ---- ビルド成果物 ----
 *.apk
