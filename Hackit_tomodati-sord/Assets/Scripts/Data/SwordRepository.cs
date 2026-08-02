@@ -313,7 +313,6 @@ public class SwordRepository : MonoBehaviour
                         created_at = row.GetString("created_at"),
                         stats = new SwordStats(
                             row.GetInt("attack", 40),
-                            row.GetInt("defense", 40),
                             row.GetInt("speed", 40),
                             row.GetFloat("reach", 1f)),
                     };
@@ -409,7 +408,7 @@ public class SwordRepository : MonoBehaviour
         "そうまの剣", "なぎさの剣",
     };
 
-    /// <summary>ステータスは実際のデータ契約どおり attack+defense+speed = 120 になるよう配る。</summary>
+    /// <summary>防御ステータスを持たないテスト用の攻撃・速度を生成する。</summary>
     public static List<SwordData> CreateMockSwords(int count)
     {
         var list = new List<SwordData>();
@@ -421,15 +420,14 @@ public class SwordRepository : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             int attack = random.Next(25, 61);
-            int defense = random.Next(25, Mathf.Max(26, 121 - attack - 25));
-            int speed = 120 - attack - defense;
+            int speed = random.Next(25, 71);
 
             list.Add(new SwordData
             {
                 id = $"mock-{i:0000}",
                 name = MockNames[i],
                 image_url = "",
-                stats = new SwordStats(attack, defense, speed, Mathf.Round(random.Next(80, 151)) / 100f),
+                stats = new SwordStats(attack, speed, Mathf.Round(random.Next(80, 151)) / 100f),
                 created_at = "2026-08-01T12:00:00Z",
             });
         }

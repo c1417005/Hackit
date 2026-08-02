@@ -81,7 +81,7 @@ Unityプロジェクトの実体はリポジトリ直下ではなく `Hackit_tom
 |---|---|
 | `SwordData.cs` | サーバーと共有するデータモデル。フィールド名はJSONキーと完全一致させること。`SwordListWrapper.FromJsonArray()` もここ |
 | `SwordBuilder.cs` | 画像+ステータスから剣のGameObjectを生成。`SwordRoot > Blade(Quad) / Spine` の階層 |
-| `Fighter.cs` | 手を支点に剣を組み立て、縦斬り・横斬り・ガード・HP・3D連続命中判定を管理。`OnHpChanged(current, max)` / `OnDefeated(fighter)` を公開 |
+| `Fighter.cs` | 手を支点に剣を組み立て、縦斬り・横斬り・HP・3D連続命中判定を管理。`OnHpChanged(current, max)` / `OnDefeated(fighter)` を公開 |
 | `BattleEffects.cs` | 残像以外の命中演出、ダメージ文字、簡易効果音、カウントダウン、K.O.表示をコード生成 |
 | `HitStop.cs` | 命中時に `Time.timeScale` を一瞬落とす演出。多重呼び出しで伸びない |
 | `HpBarUI.cs` | 1人分のHPバー。`Fighter.OnHpChanged` を購読。減った分を白帯が遅れて追う。`rightAligned` で2P用に右詰めになる |
@@ -112,13 +112,12 @@ Quadのピボットは中心にあるため、そのまま回すと剣の真ん�
 
 - □ (buttonWest) … 縦斬り
 - △ (buttonNorth) … 横斬り
-- L1 (leftShoulder) … ガード（押しっぱなし）
 
 Input System の Action Asset は使わず、`Gamepad.all[playerIndex]` を直接ポーリングしている。
 2人ローカル対戦ではこの方が設定が要らず事故らないため、この方針を維持する。
 
 パッドが人数分刺さっていない時のために、`Fighter.keyboardFallback`（既定ON）でキーボード代用が効く。
-1P = `F` 縦斬り・`R` 横斬り・`G` ガード、2P = `.` 縦斬り・`,` 横斬り・`/` ガード。
+1P = `F` 縦斬り・`R` 横斬り、2P = `.` 縦斬り・`,` 横斬り。
 リザルト表示後は `R` で選択画面へ戻る。
 
 **戦闘ロジック**
@@ -127,7 +126,6 @@ Input System の Action Asset は使わず、`Gamepad.all[playerIndex]` を直�
 - 1回の振りは 振りかぶり → Triggerが有効な斬撃 → 戻し
 - 1回の攻撃で命中は1回だけ
 - ダメージ = `max(1, 12 + attack * 0.42 - defense * 0.18)`
-- ガード成功時は最終ダメージを35%にする
 - 命中時に0.065秒のヒットストップを入れている
 - HPは 100 固定。`Fighter.maxHp` で変えられる
 

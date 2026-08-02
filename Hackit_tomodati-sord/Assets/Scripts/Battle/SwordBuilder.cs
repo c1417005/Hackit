@@ -39,7 +39,7 @@ public static class SwordBuilder
 
     public static Metrics GetMetrics(SwordData data)
     {
-        SwordStats stats = data != null && data.stats != null ? data.stats : new SwordStats(40, 40, 40, 1f);
+        SwordStats stats = data != null && data.stats != null ? data.stats : new SwordStats(40, 40, 1f);
         float reach = Mathf.Clamp(stats.reach <= 0f ? 1f : stats.reach, 0.8f, 1.5f);
         float bladeLength = BaseBladeLength * reach;
 

@@ -25,8 +25,8 @@ public class DebugResultOverlay : MonoBehaviour
         {
             var help = new GUIStyle(GUI.skin.label) { fontSize = 13 };
             GUI.Label(new Rect(20, 120, 900, 60),
-                "□ = 縦斬り   △ = 横斬り   L1 = ガード\n" +
-                "キーボード: 1P = F / R / G   2P = . / , / /",
+                "□ = 縦斬り   △ = 横斬り\n" +
+                "キーボード: 1P = F / R   2P = . / ,",
                 help);
             return;
         }

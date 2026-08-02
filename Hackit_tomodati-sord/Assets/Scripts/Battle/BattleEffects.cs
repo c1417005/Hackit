@@ -16,7 +16,6 @@ public sealed class BattleEffects : MonoBehaviour
     AudioSource _audio;
     AudioSource _music;
     AudioClip _hitSound;
-    AudioClip _guardSound;
 
     static BattleEffects Instance
     {
@@ -47,8 +46,7 @@ public sealed class BattleEffects : MonoBehaviour
         _audio.playOnAwake = false;
         _audio.spatialBlend = 0f;
         _audio.volume = 0.72f;
-        _hitSound = BuildImpactClip(false);
-        _guardSound = BuildImpactClip(true);
+        _hitSound = BuildImpactClip();
 
         _music = gameObject.AddComponent<AudioSource>();
         _music.playOnAwake = false;
@@ -64,11 +62,11 @@ public sealed class BattleEffects : MonoBehaviour
         if (_instance == this) _instance = null;
     }
 
-    public static void ShowImpact(Vector3 worldPosition, float damage, bool guarded, int attackerIndex)
+    public static void ShowImpact(Vector3 worldPosition, float damage, int attackerIndex)
     {
-        Instance.StartCoroutine(Instance.ImpactRoutine(worldPosition, damage, guarded, attackerIndex));
-        Instance._audio.PlayOneShot(guarded ? Instance._guardSound : Instance._hitSound);
-        BattleCamera.Shake(guarded ? 0.08f : 0.16f, guarded ? 0.12f : 0.20f);
+        Instance.StartCoroutine(Instance.ImpactRoutine(worldPosition, damage, attackerIndex));
+        Instance._audio.PlayOneShot(Instance._hitSound);
+        BattleCamera.Shake(0.16f, 0.20f);
     }
 
     public static void PlayCountdown(Action onComplete)
@@ -96,19 +94,17 @@ public sealed class BattleEffects : MonoBehaviour
         BattleCamera.Shake(0.28f, 0.42f);
     }
 
-    IEnumerator ImpactRoutine(Vector3 worldPosition, float damage, bool guarded, int attackerIndex)
+    IEnumerator ImpactRoutine(Vector3 worldPosition, float damage, int attackerIndex)
     {
-        Color accent = guarded
-            ? new Color(0.35f, 0.85f, 1f)
-            : attackerIndex == 0
-                ? new Color(0.25f, 0.80f, 1f)
-                : new Color(1f, 0.32f, 0.20f);
+        Color accent = attackerIndex == 0
+            ? new Color(0.25f, 0.80f, 1f)
+            : new Color(1f, 0.32f, 0.20f);
 
-        StartCoroutine(FlashRoutine(accent, guarded ? 0.08f : 0.14f));
-        SpawnImpactRing(worldPosition, accent, guarded ? 0.55f : 0.95f);
+        StartCoroutine(FlashRoutine(accent, 0.14f));
+        SpawnImpactRing(worldPosition, accent, 0.95f);
 
-        Text text = CreateText("Damage", guarded ? 42 : 56, TextAnchor.MiddleCenter, accent);
-        text.text = guarded ? $"GUARD  -{Mathf.CeilToInt(damage)}" : $"-{Mathf.CeilToInt(damage)}";
+        Text text = CreateText("Damage", 56, TextAnchor.MiddleCenter, accent);
+        text.text = $"-{Mathf.CeilToInt(damage)}";
         RectTransform rect = text.rectTransform;
         rect.sizeDelta = new Vector2(480f, 100f);
 
@@ -280,7 +276,7 @@ public sealed class BattleEffects : MonoBehaviour
         return _font;
     }
 
-    static AudioClip BuildImpactClip(bool metallic)
+    static AudioClip BuildImpactClip()
     {
         const int sampleRate = 44100;
         int samples = Mathf.RoundToInt(sampleRate * 0.11f);
@@ -288,13 +284,13 @@ public sealed class BattleEffects : MonoBehaviour
         for (int i = 0; i < samples; i++)
         {
             float t = i / (float)sampleRate;
-            float envelope = Mathf.Exp(-t * (metallic ? 24f : 34f));
-            float tone = Mathf.Sin(t * Mathf.PI * 2f * (metallic ? 920f : 170f));
-            float noise = UnityEngine.Random.Range(-1f, 1f) * (metallic ? 0.22f : 0.48f);
+            float envelope = Mathf.Exp(-t * 34f);
+            float tone = Mathf.Sin(t * Mathf.PI * 2f * 170f);
+            float noise = UnityEngine.Random.Range(-1f, 1f) * 0.48f;
             data[i] = (tone * 0.55f + noise) * envelope;
         }
 
-        AudioClip clip = AudioClip.Create(metallic ? "GuardClang" : "SwordImpact", samples, 1, sampleRate, false);
+        AudioClip clip = AudioClip.Create("SwordImpact", samples, 1, sampleRate, false);
         clip.SetData(data, 0);
         return clip;
     }

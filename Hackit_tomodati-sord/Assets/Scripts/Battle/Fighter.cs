@@ -35,7 +35,6 @@ public class Fighter : MonoBehaviour
     [Range(0.1f, 0.6f)] public float activeRatio = 0.34f;
     public float baseAttackDuration = 0.38f;
     public float hitCooldown = 0.18f;
-    [Range(0.05f, 0.8f)] public float guardDamageMultiplier = 0.35f;
 
     [Header("Charge Attack")]
     public float maxChargeSeconds = 1.2f;
@@ -58,11 +57,20 @@ public class Fighter : MonoBehaviour
     public float axeDurationMultiplier = 1.25f;
     public float axeMoveMultiplier = 0.78f;
 
+    [Header("Horizontal Swing Visual Depth")]
+    [Tooltip("横振りの振りかぶりで、描画モデルだけをカメラから遠ざける距離")]
+    public float horizontalWindupDepth = 0.16f;
+    [Tooltip("横振りの命中付近で、描画モデルだけをカメラへ近づける距離")]
+    public float horizontalStrikeDepth = 0.34f;
+    [Tooltip("刃の面の角度を見せるために加えるY軸回転")]
+    public float horizontalYawDegrees = 34f;
+    [Tooltip("カメラへ最接近した瞬間の見た目の拡大率")]
+    public float horizontalPeakScale = 1.16f;
+
     [Header("状態（読み取り用）")]
     [SerializeField] float _hp;
     [SerializeField] float _spinRatio = 1f;
     [SerializeField] bool _attacking;
-    [SerializeField] bool _guarding;
     [SerializeField] bool _charging;
     [SerializeField] bool _dodging;
 
@@ -81,6 +89,7 @@ public class Fighter : MonoBehaviour
     Rigidbody _rb;
     Transform _handPivot;
     Transform _swordPivot;
+    Transform _swordVisualPivot;
     GameObject _swordRoot;
     Renderer _bladeRenderer;
     Color _bladeBaseColor = Color.white;
@@ -103,8 +112,21 @@ public class Fighter : MonoBehaviour
     float _invincibleUntil;
     float _currentDamageMultiplier = 1f;
 
+    struct VisualPose
+    {
+        public Vector3 position;
+        public Quaternion rotation;
+        public Vector3 scale;
+
+        public static VisualPose Identity => new VisualPose
+        {
+            position = Vector3.zero,
+            rotation = Quaternion.identity,
+            scale = Vector3.one,
+        };
+    }
+
     Quaternion IdleRotation => DirectionRotation(new Vector3(0.16f * facing, 1f, 0f));
-    Quaternion GuardRotation => DirectionRotation(new Vector3(0.70f * facing, 0.72f, 0f));
 
     public Vector3 TipPosition
     {
@@ -266,7 +288,7 @@ public class Fighter : MonoBehaviour
         ApplyFacing();
         if (_handPivot != null && !_attacking)
         {
-            _handPivot.localRotation = _guarding ? GuardRotation : IdleRotation;
+            _handPivot.localRotation = IdleRotation;
         }
     }
 
@@ -285,6 +307,14 @@ public class Fighter : MonoBehaviour
         Sword = data;
         _metrics = SwordBuilder.GetMetrics(data);
         _swordRoot = SwordBuilder.Build(data, texture, _swordPivot);
+
+        // 描画モデルだけを動かす支点。HitboxはSwordRoot直下に残すため、
+        // 奥行き演出を加えてもゲーム上の攻撃範囲は2Dのまま変化しない。
+        var visualPivotObject = new GameObject("VisualDepthPivot");
+        visualPivotObject.transform.SetParent(_swordRoot.transform, false);
+        _swordVisualPivot = visualPivotObject.transform;
+        Transform blade = _swordRoot.transform.Find("Blade");
+        if (blade != null) blade.SetParent(_swordVisualPivot, false);
 
         var hitboxObject = new GameObject("Hitbox");
         hitboxObject.transform.SetParent(_swordRoot.transform, false);
@@ -307,7 +337,7 @@ public class Fighter : MonoBehaviour
         _hitbox.Configure(box);
 
         _axeHead = new GameObject("AxeHead");
-        _axeHead.transform.SetParent(_swordRoot.transform, false);
+        _axeHead.transform.SetParent(_swordVisualPivot, false);
         _axeHead.transform.localPosition = new Vector3(0f, _metrics.tipDistance * 0.78f, 0.025f);
         CreatePart("AxeBladeLeft", PrimitiveType.Cube, _axeHead.transform,
             new Vector3(-_metrics.bladeWidth * 0.72f, 0f, 0f),
@@ -320,7 +350,7 @@ public class Fighter : MonoBehaviour
         _axeHead.SetActive(false);
 
         var trailObject = new GameObject("TipTrail");
-        trailObject.transform.SetParent(_swordRoot.transform, false);
+        trailObject.transform.SetParent(_swordVisualPivot, false);
         trailObject.transform.localPosition = new Vector3(0f, _metrics.tipDistance, 0f);
         _trail = trailObject.AddComponent<TrailRenderer>();
         _trail.time = 0.14f;
@@ -337,7 +367,7 @@ public class Fighter : MonoBehaviour
         _trail.endColor = new Color(_trail.startColor.r, _trail.startColor.g, _trail.startColor.b, 0f);
         ApplyModeVisual();
 
-        _bladeRenderer = _swordRoot.transform.Find("Blade")?.GetComponent<Renderer>();
+        _bladeRenderer = _swordVisualPivot.Find("Blade")?.GetComponent<Renderer>();
         if (_bladeRenderer != null) _bladeBaseColor = GetRendererColor(_bladeRenderer);
     }
 
@@ -347,7 +377,6 @@ public class Fighter : MonoBehaviour
 
         if (!_inputEnabled || IsDefeated)
         {
-            SetGuard(false);
             return;
         }
 
@@ -372,8 +401,6 @@ public class Fighter : MonoBehaviour
                   || (keyboard != null && DodgeKey(keyboard).wasPressedThisFrame);
         bool changeMode = (pad != null && pad.rightShoulder.wasPressedThisFrame)
                        || (keyboard != null && ModeKey(keyboard).wasPressedThisFrame);
-        bool guard = (pad != null && pad.leftShoulder.isPressed)
-                  || (keyboard != null && GuardKey(keyboard).isPressed);
 
         float move = 0f;
         if (pad != null)
@@ -396,19 +423,16 @@ public class Fighter : MonoBehaviour
         {
             bool stillHeld = _chargeKind == AttackKind.Vertical ? verticalHeld : horizontalHeld;
             UpdateChargeVisual();
-            SetGuard(false);
             if (!stillHeld) ReleaseCharge();
             return;
         }
 
         if (vertical) BeginCharge(AttackKind.Vertical);
         else if (horizontal) BeginCharge(AttackKind.Horizontal);
-        else SetGuard(guard);
     }
 
     KeyControl VerticalKey(Keyboard keyboard) => playerIndex == 0 ? keyboard.fKey : keyboard.periodKey;
     KeyControl HorizontalKey(Keyboard keyboard) => playerIndex == 0 ? keyboard.rKey : keyboard.commaKey;
-    KeyControl GuardKey(Keyboard keyboard) => playerIndex == 0 ? keyboard.gKey : keyboard.slashKey;
     KeyControl DodgeKey(Keyboard keyboard) => playerIndex == 0 ? keyboard.tKey : keyboard.semicolonKey;
     KeyControl ModeKey(Keyboard keyboard) => playerIndex == 0 ? keyboard.vKey : keyboard.rightShiftKey;
     KeyControl MoveLeftKey(Keyboard keyboard) => playerIndex == 0 ? keyboard.aKey : keyboard.leftArrowKey;
@@ -446,7 +470,6 @@ public class Fighter : MonoBehaviour
         float speedT = Mathf.InverseLerp(20f, 70f, stats.speed);
         float moveSpeed = Mathf.Lerp(0.62f, 2.25f, speedT);
         if (CurrentMode == WeaponMode.Axe) moveSpeed *= axeMoveMultiplier;
-        if (_guarding) moveSpeed *= 0.42f;
 
         Vector3 position = transform.position;
         position.x += Mathf.Clamp(input, -1f, 1f) * moveSpeed * Time.deltaTime;
@@ -512,7 +535,6 @@ public class Fighter : MonoBehaviour
         if (!_inputEnabled || IsDefeated || _attacking || _dodging || Time.time < _nextAttackTime) return false;
         if (_swordRoot == null) return false;
 
-        SetGuard(false);
         _attackRoutine = StartCoroutine(AttackRoutine(kind, Mathf.Clamp01(chargeRatio)));
         return true;
     }
@@ -522,7 +544,6 @@ public class Fighter : MonoBehaviour
         if (!_inputEnabled || IsDefeated || _attacking || _dodging || _charging || Time.time < _nextAttackTime) return;
         if (_swordRoot == null) return;
 
-        SetGuard(false);
         _charging = true;
         _chargeKind = kind;
         _chargeStartedAt = Time.time;
@@ -600,10 +621,28 @@ public class Fighter : MonoBehaviour
             strike = DirectionRotation(new Vector3(1.0f * facing, 0.12f, 0f));
         }
 
-        yield return RotateOverTime(start, windup, windupTime, false);
-        yield return RotateOverTime(windup, strike, strikeTime, true);
-        yield return RotateOverTime(strike, IdleRotation, recoveryTime, false);
+        VisualPose idleVisual = VisualPose.Identity;
+        VisualPose currentVisual = ReadVisualPose();
+        VisualPose windupVisual = idleVisual;
+        VisualPose strikeVisual = idleVisual;
+        if (kind == AttackKind.Horizontal)
+        {
+            // カメラは-Z側。振りかぶりでは+Z（奥）、命中付近では-Z（手前）へ描画だけ動かす。
+            // 2P側はSwordPivotがY軸180度反転しているため、local Zもfacingで補正する。
+            windupVisual.position = new Vector3(0f, 0f, horizontalWindupDepth * facing);
+            windupVisual.rotation = Quaternion.Euler(0f, -horizontalYawDegrees * 0.55f * facing, 0f);
+            windupVisual.scale = Vector3.one * 0.94f;
+
+            strikeVisual.position = new Vector3(0f, 0f, -horizontalStrikeDepth * facing);
+            strikeVisual.rotation = Quaternion.Euler(0f, horizontalYawDegrees * facing, 0f);
+            strikeVisual.scale = Vector3.one * horizontalPeakScale;
+        }
+
+        yield return RotateOverTime(start, windup, windupTime, false, currentVisual, windupVisual);
+        yield return RotateOverTime(windup, strike, strikeTime, true, windupVisual, strikeVisual);
+        yield return RotateOverTime(strike, IdleRotation, recoveryTime, false, strikeVisual, idleVisual);
         _handPivot.localPosition = Vector3.zero;
+        ApplyVisualPose(idleVisual);
 
         _attacking = false;
         _currentDamageMultiplier = 1f;
@@ -611,7 +650,13 @@ public class Fighter : MonoBehaviour
         _attackRoutine = null;
     }
 
-    IEnumerator RotateOverTime(Quaternion from, Quaternion to, float duration, bool active)
+    IEnumerator RotateOverTime(
+        Quaternion from,
+        Quaternion to,
+        float duration,
+        bool active,
+        VisualPose visualFrom,
+        VisualPose visualTo)
     {
         _hitbox?.SetActiveWindow(active);
         if (_trail != null) _trail.emitting = active;
@@ -623,12 +668,14 @@ public class Fighter : MonoBehaviour
             float t = Mathf.Clamp01(elapsed / Mathf.Max(0.001f, duration));
             t = t * t * (3f - 2f * t);
             _handPivot.localRotation = Quaternion.Slerp(from, to, t);
+            ApplyVisualPose(LerpVisualPose(visualFrom, visualTo, t));
             if (!active) _handPivot.localPosition = Vector3.Lerp(startPosition, Vector3.zero, t);
             if (active) _hitbox?.SetActiveWindow(true);
             yield return null;
         }
 
         _handPivot.localRotation = to;
+        ApplyVisualPose(visualTo);
         if (!active)
         {
             _handPivot.localPosition = Vector3.zero;
@@ -637,21 +684,39 @@ public class Fighter : MonoBehaviour
         }
     }
 
+    VisualPose ReadVisualPose()
+    {
+        if (_swordVisualPivot == null) return VisualPose.Identity;
+        return new VisualPose
+        {
+            position = _swordVisualPivot.localPosition,
+            rotation = _swordVisualPivot.localRotation,
+            scale = _swordVisualPivot.localScale,
+        };
+    }
+
+    static VisualPose LerpVisualPose(VisualPose from, VisualPose to, float t)
+    {
+        return new VisualPose
+        {
+            position = Vector3.Lerp(from.position, to.position, t),
+            rotation = Quaternion.Slerp(from.rotation, to.rotation, t),
+            scale = Vector3.Lerp(from.scale, to.scale, t),
+        };
+    }
+
+    void ApplyVisualPose(VisualPose pose)
+    {
+        if (_swordVisualPivot == null) return;
+        _swordVisualPivot.localPosition = pose.position;
+        _swordVisualPivot.localRotation = pose.rotation;
+        _swordVisualPivot.localScale = pose.scale;
+    }
+
     static Quaternion DirectionRotation(Vector3 direction)
     {
         direction.Normalize();
         return Quaternion.FromToRotation(Vector3.up, direction);
-    }
-
-    void SetGuard(bool guarding)
-    {
-        if (_attacking || _charging || _dodging) guarding = false;
-        if (_guarding == guarding) return;
-        _guarding = guarding;
-        if (_handPivot != null)
-        {
-            _handPivot.localRotation = guarding ? GuardRotation : IdleRotation;
-        }
     }
 
     internal void HandleBladeContact(Collider other)
@@ -664,7 +729,8 @@ public class Fighter : MonoBehaviour
         _hitThisAttack = true;
         SwordStats stats = GetStats();
         float modeDamage = CurrentMode == WeaponMode.Axe ? axeDamageMultiplier : 1f;
-        float rawDamage = (12f + stats.attack * 0.42f) * _currentDamageMultiplier * modeDamage;
+        // 防御ステータス廃止後も従来と近い決着速度になるよう基礎威力を調整。
+        float rawDamage = (7f + stats.attack * 0.38f) * _currentDamageMultiplier * modeDamage;
         target.TakeImpact(rawDamage, this);
         HitStop.Play(0.065f);
     }
@@ -673,10 +739,7 @@ public class Fighter : MonoBehaviour
     {
         if (IsDefeated || Time.time < _invincibleUntil) return;
 
-        SwordStats stats = GetStats();
-        float damage = Mathf.Max(1f, rawDamage - stats.defense * 0.18f);
-        bool guarded = _guarding && !_attacking;
-        if (guarded) damage *= guardDamageMultiplier;
+        float damage = Mathf.Max(1f, rawDamage);
 
         _hp = Mathf.Max(0f, _hp - damage);
         OnHpChanged?.Invoke(_hp, maxHp);
@@ -684,12 +747,11 @@ public class Fighter : MonoBehaviour
         Vector3 impactPosition = from != null
             ? Vector3.Lerp(TipPosition, from.TipPosition, 0.5f)
             : TipPosition;
-        BattleEffects.ShowImpact(impactPosition, damage, guarded, from != null ? from.playerIndex : 0);
+        BattleEffects.ShowImpact(impactPosition, damage, from != null ? from.playerIndex : 0);
 
         if (_hp <= 0f)
         {
             _inputEnabled = false;
-            SetGuard(false);
             OnDefeated?.Invoke(this);
         }
     }
@@ -699,7 +761,6 @@ public class Fighter : MonoBehaviour
         if (!_inputEnabled || IsDefeated || _attacking || _dodging || Time.time < _nextDodgeTime) return false;
 
         CancelCharge();
-        SetGuard(false);
         StartCoroutine(DodgeRoutine());
         return true;
     }
@@ -740,7 +801,6 @@ public class Fighter : MonoBehaviour
         StopAllCoroutines();
         _attackRoutine = null;
         _attacking = false;
-        _guarding = false;
         _charging = false;
         _dodging = false;
         _hitThisAttack = false;
@@ -761,6 +821,7 @@ public class Fighter : MonoBehaviour
             _handPivot.localRotation = IdleRotation;
             _handPivot.localPosition = Vector3.zero;
         }
+        ApplyVisualPose(VisualPose.Identity);
         _hitbox?.SetActiveWindow(false);
         if (_trail != null)
         {
@@ -780,7 +841,6 @@ public class Fighter : MonoBehaviour
         if (!enabled)
         {
             CancelCharge();
-            SetGuard(false);
         }
     }
 
@@ -815,7 +875,7 @@ public class Fighter : MonoBehaviour
     {
         return Sword != null && Sword.stats != null
             ? Sword.stats
-            : new SwordStats(40, 40, 40, 1f);
+            : new SwordStats(40, 40, 1f);
     }
 
     IEnumerator FlashBlade()

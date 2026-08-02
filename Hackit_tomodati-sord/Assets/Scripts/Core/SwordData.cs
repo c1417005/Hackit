@@ -15,22 +15,20 @@ public class SwordData
 }
 
 /// <summary>
-/// attack / defense / speed は合計120ポイントの配分値。reach は剣の長さ倍率（0.8〜1.5想定）。
+/// 戦闘ステータスは attack / speed。現在のモデルでは reach を長さに使用する。
 /// </summary>
 [Serializable]
 public class SwordStats
 {
     public int attack;
-    public int defense;
     public int speed;
     public float reach = 1f;
 
     public SwordStats() { }
 
-    public SwordStats(int attack, int defense, int speed, float reach)
+    public SwordStats(int attack, int speed, float reach)
     {
         this.attack = attack;
-        this.defense = defense;
         this.speed = speed;
         this.reach = reach;
     }
