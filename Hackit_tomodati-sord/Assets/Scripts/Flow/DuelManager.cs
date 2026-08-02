@@ -137,7 +137,9 @@ public class DuelManager : MonoBehaviour
             }
         }
 
-        StartCoroutine(LoadThenSelect());
+        // 既存武器の一覧は「既存の武器」を選んだ後に取得する。
+        // 起動時にDB待ちを挟まないため、最初はモード選択だけを表示する。
+        EnterModeSelect();
     }
 
     void OnEnable()
@@ -185,7 +187,7 @@ public class DuelManager : MonoBehaviour
         }
 
         Debug.Log($"[DuelManager] 剣を{_swords.Count}本読み込んだ");
-        EnterModeSelect();
+        EnterSelect();
     }
 
     /// <summary>最初の画面。2人が「既存」か「新規作成」かを同時に選ぶ。</summary>
@@ -247,7 +249,8 @@ public class DuelManager : MonoBehaviour
             return;
         }
 
-        EnterSelect();
+        // 選択画面を開くたびSQLiteを読み直す。Web側で直前に追加された剣も見える。
+        StartCoroutine(LoadThenSelect());
     }
 
     /// <summary>既存の剣を選ぶ画面。まだ決まっていない人だけが操作する。</summary>
