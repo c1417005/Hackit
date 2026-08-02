@@ -53,10 +53,9 @@ public static class BattleStageInstaller
         // シーンには旧版の値が Serialize 済みのことがあるので、必ず射程の成立する範囲へ収める
         float spawnDistance = Mathf.Clamp(config.spawnDistance, MinSpawnDistance, MaxSpawnDistance);
 
-        BuildGround();
-        BuildBackdrop();
-
         Camera camera = SetupCamera(config.cameraPosition);
+        BuildGround();
+        BuildBackdrop(camera);
         SetupLight();
         SetupVisualQuality(camera);
 
@@ -85,22 +84,34 @@ public static class BattleStageInstaller
         ApplyColor(ground.GetComponent<Renderer>(), new Color(0.075f, 0.09f, 0.14f));
     }
 
-    static void BuildBackdrop()
+    static void BuildBackdrop(Camera camera)
     {
         var wall = GameObject.CreatePrimitive(PrimitiveType.Quad);
         wall.name = "ArenaBackdrop";
         Object.DestroyImmediate(wall.GetComponent<Collider>());
-        wall.transform.position = new Vector3(0f, 2.7f, 2.2f);
-        wall.transform.localScale = new Vector3(13.5f, 7.6f, 1f);
 
         Texture2D campus = Resources.Load<Texture2D>("Battle/KanazawaInstituteOfTechnologyBackground");
         if (campus != null)
         {
+            // Keep the campus photo fitted to the screen while the battle camera
+            // moves and zooms. A world-space wall caused the photo to be heavily
+            // cropped whenever the camera moved closer to the fighters.
+            const float backdropDistance = 30f;
+            float height = 2f * backdropDistance
+                * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            float width = height * camera.aspect;
+            wall.transform.SetParent(camera.transform, false);
+            wall.transform.localPosition = new Vector3(0f, 0f, backdropDistance);
+            wall.transform.localRotation = Quaternion.identity;
+            wall.transform.localScale = new Vector3(width * 1.01f, height * 1.01f, 1f);
+
             campus.wrapMode = TextureWrapMode.Clamp;
             ApplyTexture(wall.GetComponent<Renderer>(), campus);
         }
         else
         {
+            wall.transform.position = new Vector3(0f, 2.7f, 2.2f);
+            wall.transform.localScale = new Vector3(13.5f, 7.6f, 1f);
             Debug.LogWarning("[BattleStageInstaller] KIT campus background was not found in Resources/Battle.");
             ApplyColor(wall.GetComponent<Renderer>(), new Color(0.025f, 0.035f, 0.075f));
             BuildGlowPillar("P1Glow", -4.7f, new Color(0.08f, 0.42f, 1f));
@@ -262,8 +273,9 @@ public static class BattleStageInstaller
         var material = new Material(shader);
         material.mainTexture = texture;
         if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", texture);
-        if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", Color.white);
-        if (material.HasProperty("_Color")) material.SetColor("_Color", Color.white);
+        Color arenaTint = new Color(0.66f, 0.72f, 0.82f, 1f);
+        if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", arenaTint);
+        if (material.HasProperty("_Color")) material.SetColor("_Color", arenaTint);
         if (material.HasProperty("_Cull")) material.SetFloat("_Cull", 0f);
         renderer.sharedMaterial = material;
     }
