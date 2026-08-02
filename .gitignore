@@ -30,6 +30,7 @@ Thumbs.db
 # Generated outputs (images, logs)
 output/
 *.log
+images/
 
 # Ignore large model/cache directories (user can adjust if needed)
 # rembg, mediapipe などのランタイムキャッシュはユーザーディレクトリに置かれることが多い
