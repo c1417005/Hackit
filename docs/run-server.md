@@ -8,14 +8,19 @@
 C:\Users\soufu\Hackit>     ← ここ
 ```
 
-`backend\` の中に入って実行してはいけない。`main.py` の中でパスを相対指定しているため、
-別の場所に DB や画像フォルダが作られてしまう。
+`backend.main:app` というモジュール指定を解決するため、ルートから起動する必要がある。
+`backend\` の中に入って実行すると `Could not import module "backend.main"` になる。
 
-| 参照先 | コード上の指定 | ルートから起動した場合 |
-| --- | --- | --- |
-| DB | `my.db` | `Hackit\my.db` |
-| 画像保存先 | `images/` | `Hackit\images\` |
-| 撮影ページ | `image_process/website.html` | `Hackit\image_process\website.html` |
+なお DB と画像の置き場所は `main.py` 内で `BASE_DIR`（リポジトリのルート）を基準に
+組み立てているので、起動ディレクトリが違っても別の場所に作られることはない。
+
+| 参照先 | 実際の場所 |
+| --- | --- |
+| DB | `Hackit\my.db` |
+| 画像保存先 | `Hackit\images\before\`（原本）、`Hackit\images\after\`（背景除去後） |
+| 撮影ページ | `Hackit\image_process\website.html` |
+
+`my.db` と `images\` は `.gitignore` 済み。各自のローカルで自動生成されるので共有しない。
 
 ---
 
@@ -80,6 +85,22 @@ venv\Scripts\python.exe -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 http://127.0.0.1:8000/health   → {"ok":true}
 http://127.0.0.1:8000/dbtest   → テストデータ3件
 ```
+
+### エンドポイント一覧
+
+| メソッド | パス | 用途 |
+| --- | --- | --- |
+| GET | `/` | スマホの撮影ページ |
+| GET | `/health` | 疎通確認 |
+| POST | `/api/upload` | 撮影ページから `image` / `name` / `height` を受け取る。`{"ok":true,"id":12,"status":"pending"}` を即返し、画像処理は裏で走る |
+| GET | `/api/persons` | **Unity 用**。処理が完走した（`status='done'`）行だけ返す |
+| GET | `/api/persons/{id}` | 1件の状態を返す。撮影ページが完了を待つのに使う |
+| GET | `/dbtest` | デバッグ用。`status` に関係なく全件返す |
+| GET | `/images/before/{id}.jpg` | アップロード原本 |
+| GET | `/images/after/{id}.png` | 背景除去済みテクスチャ |
+
+`status` は `pending` → `processing` → `done`（または `failed`）と遷移する。
+`failed` のときは `error` 列に理由が入る。
 
 ### 2. 他の PC・スマホから
 

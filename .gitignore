@@ -32,6 +32,11 @@ output/
 *.log
 images/
 
+# SQLite (各自のローカルで自動生成されるので共有しない)
+*.db
+*.db-wal
+*.db-shm
+
 # Ignore large model/cache directories (user can adjust if needed)
 # rembg, mediapipe などのランタイムキャッシュはユーザーディレクトリに置かれることが多い
 # 例: .cache/, model files (uncomment if present in repo)
