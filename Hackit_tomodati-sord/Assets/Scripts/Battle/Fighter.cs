@@ -233,6 +233,9 @@ public class Fighter : MonoBehaviour
     /// </summary>
     void BuildFist()
     {
+        // 手の見た目は戦闘ロジックから分離する。生成に失敗した場合だけ従来表示へ戻す。
+        if (HandVisualFactory.TryCreate(_handPivot)) return;
+
         var skin = new Color(0.93f, 0.74f, 0.60f);
         var skinShade = new Color(0.82f, 0.62f, 0.49f);
         var cuff = new Color(0.16f, 0.19f, 0.28f);
