@@ -172,6 +172,35 @@
     .status.busy {
       color: var(--text-dim);
     }
+
+    .result {
+      width: 100%;
+      max-width: 360px;
+      margin-top: 8px;
+      padding: 10px 16px;
+      background: var(--panel);
+      border: 1px solid #3a3548;
+      border-radius: 12px;
+    }
+
+    .result[hidden] {
+      display: none;
+    }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 6px 0;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .result-row strong {
+      font-size: 22px;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
   </style>
 </head>
 
@@ -202,6 +231,11 @@
   <button class="btn btn-upload" id="uploadBtn" disabled>アップロード</button>
   <div class="status" id="status"></div>
 
+  <div class="result" id="result" hidden>
+    <div class="result-row"><span>攻撃力</span><strong id="resAttack">-</strong></div>
+    <div class="result-row"><span>スピード</span><strong id="resSpeed">-</strong></div>
+  </div>
+
   <script>
     // ページと同じオリジンに送るので相対パスでよい
     // (スマホからIPで開いてもそのまま動く)
@@ -215,6 +249,13 @@
     const statusEl = document.getElementById('status');
     const nameInput = document.getElementById('nameInput');
     const heightInput = document.getElementById('heightInput');
+    const resultEl = document.getElementById('result');
+    const resAttack = document.getElementById('resAttack');
+    const resSpeed = document.getElementById('resSpeed');
+
+    // 画像処理は十数秒かかることがあるので、余裕をもって待つ
+    const POLL_INTERVAL_MS = 1500;
+    const POLL_TIMEOUT_MS = 120000;
 
     let selectedFile = null;
 
@@ -248,13 +289,51 @@
 
       updateUploadState();
       setStatus('', '');
+      resultEl.hidden = true;
     });
+
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // /api/upload は受理した時点で返ってくる。画像処理はそのあとサーバー側で走るので、
+    // status が done / failed になるまで /api/persons/{id} を見にいく。
+    async function waitForResult(id) {
+      const started = Date.now();
+
+      while (Date.now() - started < POLL_TIMEOUT_MS) {
+        const res = await fetch(`/api/persons/${id}`);
+        if (!res.ok) throw new Error(`サーバーエラー: ${res.status}`);
+
+        const person = await res.json();
+        if (person.status === 'done') return person;
+        if (person.status === 'failed') {
+          throw new Error(person.error || '画像処理に失敗しました');
+        }
+
+        const sec = Math.round((Date.now() - started) / 1000);
+        setStatus(`画像を処理中... (${sec}秒)`, 'busy');
+        await sleep(POLL_INTERVAL_MS);
+      }
+
+      throw new Error('処理がタイムアウトしました');
+    }
+
+    function showResult(person) {
+      resAttack.textContent = person.attack;
+      resSpeed.textContent = person.speed;
+      resultEl.hidden = false;
+
+      // 背景除去後の画像に差し替える
+      if (person.after_url) {
+        preview.src = person.after_url;
+      }
+    }
 
     uploadBtn.addEventListener('click', async () => {
       if (!selectedFile) return;
 
       uploadBtn.disabled = true;
       captureBtn.disabled = true;
+      resultEl.hidden = true;
       setStatus('アップロード中...', 'busy');
 
       const formData = new FormData();
@@ -272,7 +351,11 @@
           throw new Error(`サーバーエラー: ${res.status}`);
         }
 
-        setStatus('アップロード完了！', 'ok');
+        const { id } = await res.json();
+        setStatus('画像を処理中...', 'busy');
+
+        showResult(await waitForResult(id));
+        setStatus('完成！', 'ok');
       } catch (err) {
         setStatus(`失敗: ${err.message}`, 'err');
       } finally {
