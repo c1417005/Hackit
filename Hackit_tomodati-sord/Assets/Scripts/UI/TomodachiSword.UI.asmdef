@@ -1,0 +1,11 @@
+{
+    "name": "TomodachiSword.UI",
+    "rootNamespace": "",
+    "references": [
+        "TomodachiSword.Core",
+        "TomodachiSword.Battle",
+        "TomodachiSword.Flow",
+        "Unity.InputSystem"
+    ],
+    "autoReferenced": true
+}

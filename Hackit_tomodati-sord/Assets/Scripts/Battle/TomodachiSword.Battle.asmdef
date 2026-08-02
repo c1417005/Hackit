@@ -1,0 +1,11 @@
+{
+    "name": "TomodachiSword.Battle",
+    "rootNamespace": "",
+    "references": [
+        "TomodachiSword.Core",
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
+    ],
+    "autoReferenced": true
+}

@@ -1,41 +1,67 @@
+# ---- Unity が再生成するもの（絶対に上げない） ----
+# Library は 3GB 超あるが、Assets と ProjectSettings から作り直せる
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+ProfilerCaptures/
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environments
-venv/
-env/
-.venv/
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
-pip-wheel-metadata/
-
-# Pytest
-.pytest_cache/
-
-# IDEs and editors
+# ---- IDE が作るもの ----
+.vs/
 .vscode/
 .idea/
-*.swp
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
 
-# OS files
-.DS_Store
-Thumbs.db
+# ---- ビルド成果物 ----
+*.apk
+*.aab
+*.app
+*.unitypackage
+sysinfo.txt
+crashlytics-build.properties
 
-# Generated outputs (images, logs)
-output/
-*.log
+# ---- クラッシュ復旧のシーンバックアップ ----
+# 「Recovering Scene Backups」で Yes を押すと生える。本物は Assets/Scenes/ 配下
+**/[Aa]ssets/_[Rr]ecovery/
+**/[Aa]ssets/_[Rr]ecovery.meta
 
-# Ignore large model/cache directories (user can adjust if needed)
-# rembg, mediapipe などのランタイムキャッシュはユーザーディレクトリに置かれることが多い
-# 例: .cache/, model files (uncomment if present in repo)
-# .cache/
-# models/
+# ---- Addressables ----
+# 途中にスラッシュがあるパターンは .gitignore のある階層に固定される。
+# Unity プロジェクトは Hackit_tomodati-sord/Assets/... と1階層下なので ** が要る。
+**/[Aa]ssets/[Ss]treamingAssets/aa.meta
+**/[Aa]ssets/[Ss]treamingAssets/aa/*
 
-# keep Git submodules tracked (do not ignore 'Hackit' if it's a submodule)
+# ---- 本番の人物写真は上げない ----
+# 切り抜き前後どちらも個人が写っている。テスト用の tomodachi_sword.db は上げて良い
+**/[Aa]ssets/[Ss]treamingAssets/photos/
+**/[Aa]ssets/[Ss]treamingAssets/swords/
 
+# ---- エージェントのローカル設定 ----
+# 秘密情報は無いが、このPC固有の絶対パスが入っていて他の人には使えない
+.claude/settings.local.json
+.codex/
+.mcp.json
+
+# Local Windows player builds
+/Builds/
+
+# ---- 注意 ----
+# *.meta は Unity が参照を保つのに必須。絶対に無視しないこと

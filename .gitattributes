@@ -1,0 +1,22 @@
+# 改行コードは自動判定に任せる
+* text=auto
+
+# Unity のアセットは YAML だが、行単位で機械的にマージすると壊れることがある。
+# UnityYAMLMerge を使う設定にしておく（未設定なら通常の3wayになる）。
+*.unity      merge=unityyamlmerge eol=lf
+*.prefab     merge=unityyamlmerge eol=lf
+*.asset      merge=unityyamlmerge eol=lf
+*.mat        merge=unityyamlmerge eol=lf
+*.anim       merge=unityyamlmerge eol=lf
+*.controller merge=unityyamlmerge eol=lf
+*.meta       merge=unityyamlmerge eol=lf
+
+# バイナリ扱い。差分もマージも取らせない
+*.db      binary
+*.png     binary
+*.jpg     binary
+*.fbx     binary
+*.wav     binary
+*.mp3     binary
+*.ttf     binary
+*.unitypackage binary
