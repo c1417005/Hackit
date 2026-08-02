@@ -13,6 +13,7 @@ public static class UiInstaller
         SwordSelectUI.Create(duel);
         ForgeUI.Create(duel);
         BattleHud.Create(player1, player2).Bind(duel);
+        VictoryScreen.Create(duel);
         BackNavigationUI.Create(duel);
 
         if (showDebugOverlay)

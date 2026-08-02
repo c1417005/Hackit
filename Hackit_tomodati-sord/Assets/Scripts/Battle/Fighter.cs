@@ -30,12 +30,18 @@ public class Fighter : MonoBehaviour
     public bool useExternalInput;
 
     [Header("戦闘")]
-    [Tooltip("対戦が短すぎないよう、従来の100から200へ増量")]
-    public float maxHp = 200f;
+    [Tooltip("対戦時間を確保するため、最大HPを300に設定")]
+    public float maxHp = 300f;
     [Range(0.1f, 0.6f)] public float windupRatio = 0.28f;
     [Range(0.1f, 0.6f)] public float activeRatio = 0.34f;
     public float baseAttackDuration = 0.38f;
     public float hitCooldown = 0.18f;
+
+    [Header("Speed Stat Scaling")]
+    [Tooltip("SPD 20以下の攻撃時間倍率。大きいほど攻撃が遅い")]
+    public float slowAttackDurationMultiplier = 1.60f;
+    [Tooltip("SPD 70以上の攻撃時間倍率。小さいほど攻撃が速い")]
+    public float fastAttackDurationMultiplier = 0.40f;
 
     [Header("Charge Attack")]
     public float maxChargeSeconds = 1.2f;
@@ -49,6 +55,10 @@ public class Fighter : MonoBehaviour
     public float dodgeCooldown = 0.90f;
 
     [Header("Movement")]
+    [Tooltip("SPD 20以下の移動速度")]
+    public float slowMoveSpeed = 0.45f;
+    [Tooltip("SPD 70以上の移動速度")]
+    public float fastMoveSpeed = 2.85f;
     public float minArenaX = -1.45f;
     public float maxArenaX = 1.45f;
     public float centerGap = 0.20f;
@@ -158,7 +168,11 @@ public class Fighter : MonoBehaviour
             SwordStats stats = GetStats();
             float speedT = Mathf.InverseLerp(20f, 70f, stats.speed);
             float modeMultiplier = CurrentMode == WeaponMode.Axe ? axeDurationMultiplier : 1f;
-            return baseAttackDuration * Mathf.Lerp(1.48f, 0.52f, speedT) * modeMultiplier;
+            float speedMultiplier = Mathf.Lerp(
+                slowAttackDurationMultiplier,
+                fastAttackDurationMultiplier,
+                speedT);
+            return baseAttackDuration * speedMultiplier * modeMultiplier;
         }
     }
 
@@ -473,7 +487,7 @@ public class Fighter : MonoBehaviour
 
         SwordStats stats = GetStats();
         float speedT = Mathf.InverseLerp(20f, 70f, stats.speed);
-        float moveSpeed = Mathf.Lerp(0.62f, 2.25f, speedT);
+        float moveSpeed = Mathf.Lerp(slowMoveSpeed, fastMoveSpeed, speedT);
         if (CurrentMode == WeaponMode.Axe) moveSpeed *= axeMoveMultiplier;
 
         Vector3 position = transform.position;
@@ -889,6 +903,67 @@ public class Fighter : MonoBehaviour
         {
             CancelCharge();
         }
+    }
+
+    /// <summary>
+    /// 決着した瞬間のポーズで戦闘動作を完全に止める。
+    /// 入力停止だけでは攻撃・回避コルーチンが最後まで進むため、
+    /// 確殺演出へ入るときはこちらを使用する。
+    /// </summary>
+    public void FreezeForResult()
+    {
+        StopAllCoroutines();
+        _attackRoutine = null;
+        _inputEnabled = false;
+        _attacking = false;
+        _charging = false;
+        _dodging = false;
+        _hitThisAttack = true;
+        _externalInput = 0f;
+        _previousExternalInput = 0f;
+        _hitbox?.SetActiveWindow(false);
+
+        if (_trail != null)
+        {
+            _trail.emitting = false;
+            _trail.Clear();
+        }
+
+        // 被弾フラッシュの途中で止めた場合も、勝利画面には本来の色で表示する。
+        if (_bladeRenderer != null)
+        {
+            SetRendererColor(_bladeRenderer, _bladeBaseColor);
+        }
+    }
+
+    /// <summary>
+    /// 勝利画面専用の表示モデルを作る。戦闘用Hitboxや入力処理は複製しない。
+    /// </summary>
+    public GameObject CreatePresentationModel(Transform parent)
+    {
+        if (_bladeTransform == null || parent == null) return null;
+
+        GameObject clone = Instantiate(_bladeTransform.gameObject, parent, false);
+        clone.name = "VictoryModel";
+
+        foreach (Collider collider in clone.GetComponentsInChildren<Collider>(true))
+        {
+            Destroy(collider);
+        }
+
+        foreach (Rigidbody body in clone.GetComponentsInChildren<Rigidbody>(true))
+        {
+            Destroy(body);
+        }
+
+        foreach (TrailRenderer trail in clone.GetComponentsInChildren<TrailRenderer>(true))
+        {
+            trail.emitting = false;
+            trail.enabled = false;
+        }
+
+        clone.SetActive(true);
+        return clone;
     }
 
     void UpdateReadyGauge()

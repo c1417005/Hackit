@@ -91,6 +91,9 @@ public class DuelManager : MonoBehaviour
 
     public event Action<Phase> OnPhaseChanged;
 
+    /// <summary>確殺演出が終わり、勝利画面を表示できる状態になった。</summary>
+    public event Action<Fighter> OnVictoryPresentation;
+
     /// <summary>(playerIndex, 選ばれた剣)。決定を取り消した場合は null が来る。</summary>
     public event Action<int, SwordData> OnSelectionChanged;
 
@@ -511,17 +514,21 @@ public class DuelManager : MonoBehaviour
         Loser = loser;
         Winner = loser == player1 ? player2 : player1;
 
-        player1.SetInputEnabled(false);
-        player2.SetInputEnabled(false);
+        // 攻撃・回避の途中も含め、決着したフレームのポーズで止める。
+        player1.FreezeForResult();
+        player2.FreezeForResult();
 
         SetPhase(Phase.Result);
-        BattleEffects.ShowKO(Winner);
         StartCoroutine(ResultRoutine());
     }
 
     IEnumerator ResultRoutine()
     {
         _resultInputReady = false;
+
+        // 対戦画面上の確殺演出を見せてから、専用の勝利画面へ切り替える。
+        yield return BattleEffects.PlayFinishingBlow(Winner, Loser);
+        OnVictoryPresentation?.Invoke(Winner);
 
         string winnerId = Winner != null && Winner.Sword != null ? Winner.Sword.id : null;
         string loserId = Loser != null && Loser.Sword != null ? Loser.Sword.id : null;
