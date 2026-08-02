@@ -94,6 +94,20 @@ public sealed class BattleEffects : MonoBehaviour
         BattleCamera.Shake(0.28f, 0.42f);
     }
 
+    /// <summary>画面を戻るとき、カウントダウンやK.O.表示を次画面へ残さない。</summary>
+    public static void ClearTransientUi()
+    {
+        if (_instance == null) return;
+
+        _instance.StopAllCoroutines();
+        if (_instance._canvas == null) return;
+
+        for (int i = _instance._canvas.transform.childCount - 1; i >= 0; i--)
+        {
+            Destroy(_instance._canvas.transform.GetChild(i).gameObject);
+        }
+    }
+
     IEnumerator ImpactRoutine(Vector3 worldPosition, float damage, int attackerIndex)
     {
         Color accent = attackerIndex == 0

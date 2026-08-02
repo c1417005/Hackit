@@ -226,7 +226,7 @@ public class SwordSelectUI : MonoBehaviour
             _panelBackgrounds[player].color = panelColor;
         }
 
-        _footer.text = "十字キー ← →：選択　　×：決定　　○：取り消し";
+        _footer.text = "十字キー ← →：選択　　×：決定　　○：取り消し　　OPTIONS：戻る";
     }
 
     void ShowSword(int player, SwordData sword)

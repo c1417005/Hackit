@@ -30,7 +30,8 @@ public class Fighter : MonoBehaviour
     public bool useExternalInput;
 
     [Header("戦闘")]
-    public float maxHp = 100f;
+    [Tooltip("対戦が短すぎないよう、従来の100から200へ増量")]
+    public float maxHp = 200f;
     [Range(0.1f, 0.6f)] public float windupRatio = 0.28f;
     [Range(0.1f, 0.6f)] public float activeRatio = 0.34f;
     public float baseAttackDuration = 0.38f;
@@ -66,6 +67,8 @@ public class Fighter : MonoBehaviour
     public float horizontalYawDegrees = 34f;
     [Tooltip("カメラへ最接近した瞬間の見た目の拡大率")]
     public float horizontalPeakScale = 1.16f;
+    [Tooltip("横斬りで手・モデル・当たり判定を真横へ移動させる距離")]
+    public float horizontalSweepDistance = 0.22f;
 
     [Header("状態（読み取り用）")]
     [SerializeField] float _hp;
@@ -594,8 +597,8 @@ public class Fighter : MonoBehaviour
         }
 
         return (
-            DirectionRotation(new Vector3(-1.0f * facing, 0.16f, 0f)),
-            DirectionRotation(new Vector3(1.0f * facing, 0.12f, 0f)));
+            DirectionRotation(new Vector3(1f * facing, 0f, 0f)),
+            DirectionRotation(new Vector3(1f * facing, 0f, 0f)));
     }
 
     IEnumerator AttackRoutine(AttackKind kind, float chargeRatio)
@@ -615,6 +618,9 @@ public class Fighter : MonoBehaviour
         Quaternion start = _handPivot.localRotation;
         Quaternion windup;
         Quaternion strike;
+        Vector3 startHandPosition = _handPivot.localPosition;
+        Vector3 windupHandPosition = Vector3.zero;
+        Vector3 strikeHandPosition = Vector3.zero;
 
         if (kind == AttackKind.Vertical)
         {
@@ -624,9 +630,12 @@ public class Fighter : MonoBehaviour
         }
         else
         {
-            // 横薙ぎ。画面左右だけでなくZ方向にも大きく移動させる。
-            windup = DirectionRotation(new Vector3(-1.0f * facing, 0.16f, 0f));
-            strike = DirectionRotation(new Vector3(1.0f * facing, 0.12f, 0f));
+            // 横薙ぎ中はモデルを完全な水平に固定する。
+            // 回転弧で振ると途中で縦になるため、手・モデル・判定をまとめてX方向へ直線移動させる。
+            windup = DirectionRotation(new Vector3(1f * facing, 0f, 0f));
+            strike = windup;
+            windupHandPosition = new Vector3(-horizontalSweepDistance * facing, 0f, 0f);
+            strikeHandPosition = new Vector3(horizontalSweepDistance * facing, 0f, 0f);
         }
 
         VisualPose idleVisual = VisualPose.Identity;
@@ -646,9 +655,18 @@ public class Fighter : MonoBehaviour
             strikeVisual.scale = Vector3.one * horizontalPeakScale;
         }
 
-        yield return RotateOverTime(start, windup, windupTime, false, currentVisual, windupVisual);
-        yield return RotateOverTime(windup, strike, strikeTime, true, windupVisual, strikeVisual);
-        yield return RotateOverTime(strike, IdleRotation, recoveryTime, false, strikeVisual, idleVisual);
+        yield return RotateOverTime(
+            start, windup, windupTime, false,
+            startHandPosition, windupHandPosition,
+            currentVisual, windupVisual);
+        yield return RotateOverTime(
+            windup, strike, strikeTime, true,
+            windupHandPosition, strikeHandPosition,
+            windupVisual, strikeVisual);
+        yield return RotateOverTime(
+            strike, IdleRotation, recoveryTime, false,
+            strikeHandPosition, Vector3.zero,
+            strikeVisual, idleVisual);
         _handPivot.localPosition = Vector3.zero;
         ApplyVisualPose(idleVisual);
 
@@ -671,12 +689,13 @@ public class Fighter : MonoBehaviour
         Quaternion to,
         float duration,
         bool active,
+        Vector3 handPositionFrom,
+        Vector3 handPositionTo,
         VisualPose visualFrom,
         VisualPose visualTo)
     {
         _hitbox?.SetActiveWindow(active);
         if (_trail != null) _trail.emitting = active;
-        Vector3 startPosition = _handPivot.localPosition;
         float elapsed = 0f;
         while (elapsed < duration)
         {
@@ -684,17 +703,17 @@ public class Fighter : MonoBehaviour
             float t = Mathf.Clamp01(elapsed / Mathf.Max(0.001f, duration));
             t = t * t * (3f - 2f * t);
             _handPivot.localRotation = Quaternion.Slerp(from, to, t);
+            _handPivot.localPosition = Vector3.Lerp(handPositionFrom, handPositionTo, t);
             ApplyVisualPose(LerpVisualPose(visualFrom, visualTo, t));
-            if (!active) _handPivot.localPosition = Vector3.Lerp(startPosition, Vector3.zero, t);
             if (active) _hitbox?.SetActiveWindow(true);
             yield return null;
         }
 
         _handPivot.localRotation = to;
+        _handPivot.localPosition = handPositionTo;
         ApplyVisualPose(visualTo);
         if (!active)
         {
-            _handPivot.localPosition = Vector3.zero;
             _hitbox?.SetActiveWindow(false);
             if (_trail != null) _trail.emitting = false;
         }

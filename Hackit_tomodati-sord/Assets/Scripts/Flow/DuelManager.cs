@@ -238,6 +238,17 @@ public class DuelManager : MonoBehaviour
         }
     }
 
+    /// <summary>モード選択中に、そのプレイヤーの決定だけを取り消す。</summary>
+    public void CancelModeSelection(int playerIndex)
+    {
+        if (Current != Phase.ModeSelect) return;
+        if (playerIndex < 0 || playerIndex >= 2) return;
+        if (_modes[playerIndex] == PlayerMode.Undecided) return;
+
+        _modes[playerIndex] = PlayerMode.Undecided;
+        OnModeChanged?.Invoke(playerIndex, PlayerMode.Undecided);
+    }
+
     /// <summary>
     /// 次にやることを決める。
     /// 新規作成がまだ残っていれば1人ずつ錬成へ、無ければ既存選択へ、
@@ -526,6 +537,28 @@ public class DuelManager : MonoBehaviour
 
     /// <summary>リザルトから選択画面に戻れる状態か。</summary>
     public bool CanLeaveResult => Current == Phase.Result && _resultInputReady;
+
+    /// <summary>初期画面では誰かが決定済みの場合、それ以外の画面では常に戻れる。</summary>
+    public bool CanReturnToModeSelect =>
+        Current != Phase.ModeSelect ||
+        _modes[0] != PlayerMode.Undecided ||
+        _modes[1] != PlayerMode.Undecided;
+
+    /// <summary>
+    /// 読み込み・錬成・選択・対戦・結果を安全に中断し、最初の画面へ戻す。
+    /// UIの共通戻るボタン、OPTIONS、Escから呼ばれる。
+    /// </summary>
+    public void ReturnToModeSelect()
+    {
+        if (!CanReturnToModeSelect) return;
+
+        StopAllCoroutines();
+        _catalogLoading = false;
+        _resultInputReady = false;
+        Time.timeScale = 1f;
+        BattleEffects.ClearTransientUi();
+        EnterModeSelect();
+    }
 
     void SetFightersActive(bool active)
     {
