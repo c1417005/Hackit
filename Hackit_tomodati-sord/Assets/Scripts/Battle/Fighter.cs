@@ -69,6 +69,8 @@ public class Fighter : MonoBehaviour
     public float horizontalPeakScale = 1.16f;
     [Tooltip("横斬りで手・モデル・当たり判定を真横へ移動させる距離")]
     public float horizontalSweepDistance = 0.22f;
+    [Tooltip("水平軌道を相手の武器根元へ合わせる高さ。角度は水平のまま維持する")]
+    public float horizontalSweepHeight = 0.22f;
 
     [Header("状態（読み取り用）")]
     [SerializeField] float _hp;
@@ -194,8 +196,7 @@ public class Fighter : MonoBehaviour
         _handPivot.SetParent(transform, false);
 
         BuildFist();
-        // The weapon image itself is the target. A separate oversized hurtbox made
-        // attacks connect in empty space, so the weapon collider now serves both roles.
+        BuildHurtbox();
 
         var swordPivotObject = new GameObject("SwordPivot");
         _swordPivot = swordPivotObject.transform;
@@ -207,24 +208,20 @@ public class Fighter : MonoBehaviour
     }
 
     /// <summary>
-    /// 被弾判定。**これが無いと「相手の剣に自分の剣を当てる」ことでしか
-    /// ダメージが出ず、カウンター専用のゲームになる。**
-    ///
-    /// 手そのものを的にする。Fighter の原点に置いて攻撃モーションで動かさないので、
-    /// 棒立ちの相手にも普通に攻撃が当たる。
+    /// 被弾判定。武器モードによって相手の武器判定位置が変わっても、
+    /// 見えている握りこぶしへ斬撃が届けば命中するようにする。
     /// </summary>
     void BuildHurtbox()
     {
         var go = new GameObject("Hurtbox");
         go.transform.SetParent(transform, false);
 
-        // 的は手そのものではなく「掲げている人」。手の上に大きく取る。
-        // ここが小さいと、振り抜いた刃が届く範囲(x≈0.5)より奥になり永久に当たらない。
-        go.transform.localPosition = new Vector3(0f, 0.55f, 0f);
+        // 空振りが命中しないよう、以前の大きな人体判定ではなく拳の見た目に合わせる。
+        go.transform.localPosition = new Vector3(0f, 0.02f, 0f);
 
         var box = go.AddComponent<BoxCollider>();
         box.isTrigger = true;
-        box.size = new Vector3(0.95f, 1.70f, 0.75f);
+        box.size = new Vector3(0.42f, 0.52f, 0.42f);
     }
 
     /// <summary>
@@ -634,8 +631,14 @@ public class Fighter : MonoBehaviour
             // 回転弧で振ると途中で縦になるため、手・モデル・判定をまとめてX方向へ直線移動させる。
             windup = DirectionRotation(new Vector3(1f * facing, 0f, 0f));
             strike = windup;
-            windupHandPosition = new Vector3(-horizontalSweepDistance * facing, 0f, 0f);
-            strikeHandPosition = new Vector3(horizontalSweepDistance * facing, 0f, 0f);
+            windupHandPosition = new Vector3(
+                -horizontalSweepDistance * facing,
+                horizontalSweepHeight,
+                0f);
+            strikeHandPosition = new Vector3(
+                horizontalSweepDistance * facing,
+                horizontalSweepHeight,
+                0f);
         }
 
         VisualPose idleVisual = VisualPose.Identity;
