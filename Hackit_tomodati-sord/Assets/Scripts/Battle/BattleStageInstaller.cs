@@ -273,7 +273,7 @@ public static class BattleStageInstaller
         var material = new Material(shader);
         material.mainTexture = texture;
         if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", texture);
-        Color arenaTint = new Color(0.66f, 0.72f, 0.82f, 1f);
+        Color arenaTint = Color.white;
         if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", arenaTint);
         if (material.HasProperty("_Color")) material.SetColor("_Color", arenaTint);
         if (material.HasProperty("_Cull")) material.SetFloat("_Cull", 0f);
