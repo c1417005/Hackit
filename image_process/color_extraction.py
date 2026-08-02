@@ -3,8 +3,13 @@
 Usage:
   python color_extraction.py IMG_4411_sword.png
 
-This script detects the person with MediaPipe Pose, masks the torso region
-between shoulders and hips, and computes the average clothing color.
+背景除去済み画像のアルファ(人物のシルエット)を使って人物領域を切り出し、
+その平均色を服の色とみなす。
+
+もとは MediaPipe Pose の肩・腰ランドマークで胴体を囲んでいたが、
+Python 3.13 で入る mediapipe には Solutions API が含まれておらず
+(0.10.30 以降・1.0.0 いずれもホイールに solutions/ が無い)、
+姿勢推定なしで成立する方式に置き換えた。
 """
 
 import json
@@ -12,7 +17,6 @@ import sys
 from pathlib import Path
 
 import cv2
-import mediapipe as mp
 import numpy as np
 
 HUE_ATTRIBUTE_TABLE = [
@@ -33,34 +37,22 @@ def hue_to_attribute(hue: float) -> str:
     return "無"
 
 
-def landmark_to_pixel(landmark, width: int, height: int):
-    return int(landmark.x * width), int(landmark.y * height)
+# 人物とみなすアルファのしきい値。背景除去の境界は半透明になるので少し余裕をみる
+PERSON_ALPHA_THRESHOLD = 10
 
 
-def get_pose_landmarks(image_bgr):
-    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    with mp.solutions.pose.Pose(static_image_mode=True, model_complexity=1) as pose:
-        results = pose.process(image_rgb)
-    if not results.pose_landmarks:
-        raise ValueError("人物のランドマークを検出できませんでした。全身が写っているか確認してください。")
-    return results.pose_landmarks.landmark
+def create_person_mask(image_bgr, alpha=None):
+    """人物のピクセルだけを 255 にしたマスクを返す。
 
-
-def create_torso_mask(image_bgr, landmarks):
+    背景除去済みの RGBA を渡す前提。alpha が無い画像だと背景も混ざるので、
+    その場合は画像全体をそのまま対象にする。
+    """
     h, w = image_bgr.shape[:2]
-    left_shoulder = landmark_to_pixel(landmarks[11], w, h)
-    right_shoulder = landmark_to_pixel(landmarks[12], w, h)
-    left_hip = landmark_to_pixel(landmarks[23], w, h)
-    right_hip = landmark_to_pixel(landmarks[24], w, h)
+    if alpha is None:
+        return np.full((h, w), 255, dtype=np.uint8)
 
-    polygon = np.array([
-        left_shoulder,
-        right_shoulder,
-        right_hip,
-        left_hip,
-    ], dtype=np.int32)
     mask = np.zeros((h, w), dtype=np.uint8)
-    cv2.fillPoly(mask, [polygon], 255)
+    mask[alpha > PERSON_ALPHA_THRESHOLD] = 255
     return mask
 
 
@@ -75,16 +67,17 @@ def extract_clothing_color(image_path: Path):
     if img.ndim == 2:
         raise ValueError("カラー画像を指定してください。")
 
-    bgr = img[:, :, :3] if img.shape[2] == 4 else img
-    landmarks = get_pose_landmarks(bgr)
-    mask = create_torso_mask(bgr, landmarks)
+    has_alpha = img.shape[2] == 4
+    bgr = img[:, :, :3] if has_alpha else img
+    alpha = img[:, :, 3] if has_alpha else None
+    mask = create_person_mask(bgr, alpha)
 
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    torso_pixels = hsv[mask == 255]
-    if torso_pixels.size == 0:
-        raise ValueError("服領域の色を抽出できませんでした。マスク領域を確認してください。")
+    person_pixels = hsv[mask == 255]
+    if person_pixels.size == 0:
+        raise ValueError("人物領域が見つかりませんでした。背景除去に失敗している可能性があります。")
 
-    avg_hsv = torso_pixels.mean(axis=0)
+    avg_hsv = person_pixels.mean(axis=0)
     hue, sat, val = float(avg_hsv[0]), float(avg_hsv[1]), float(avg_hsv[2])
 
     avg_pixel = np.uint8([[[hue, sat, val]]])

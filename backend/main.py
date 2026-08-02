@@ -32,7 +32,7 @@ ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 PERSON_COLUMNS = [
     "id", "name", "height",
     "before_path", "after_path",
-    "hue", "saturation", "value", "r", "g", "b", "attribute",
+    "hue", "saturation", "value", "r", "g", "b",
     "attack", "speed",
     "status", "error", "created_at", "updated_at",
 ]
@@ -56,7 +56,6 @@ CREATE TABLE IF NOT EXISTS persons(
     r           INTEGER,
     g           INTEGER,
     b           INTEGER,
-    attribute   TEXT,
 
     -- 最終ステータス
     attack      INTEGER,
@@ -114,12 +113,12 @@ def init_db():
     cur.execute('SELECT COUNT(*) FROM persons')
     if cur.fetchone()[0] == 0:
         cur.executemany(
-            'INSERT INTO persons(name, height, speed, attack, attribute, status)'
-            ' VALUES(?, ?, ?, ?, ?, ?)',
+            'INSERT INTO persons(name, height, speed, attack, status)'
+            ' VALUES(?, ?, ?, ?, ?)',
             [
-                ("テスト太郎", 170, 12, 34, "炎", "done"),
-                ("テスト花子", 160, 25, 18, "氷", "done"),
-                ("ずんだもん", 150, 40, 5, "森", "done"),
+                ("テスト太郎", 170, 12, 34, "done"),
+                ("テスト花子", 160, 25, 18, "done"),
+                ("ずんだもん", 150, 40, 5, "done"),
             ],
         )
 
@@ -133,16 +132,24 @@ init_db()
 
 # /=== 画像処理部
 
-def compute_stats(shoulder_height_ratio: float, sat: float, val: float, height: int):
-    """特徴量からゲーム用ステータスを決める。
+def compute_stats(sat: float, val: float, height: int):
+    """身長と服の色からゲーム用ステータスを決める。
 
-    height は今のところ使っていないが、いずれ補正に使う予定なので引数に残してある。
+    もとは image_Processing.ratio_to_stats が肩幅/身長比を主役にしていたが、
+    姿勢推定をやめたので身長を主軸にしている。数値のバランスは調整してよい。
     """
-    from image_Processing import ratio_to_stats
+    # 140〜200cm を 0.0〜1.0 に正規化する (範囲外は端に丸める)
+    t = min(max((height - 140) / 60, 0.0), 1.0)
 
-    stats = ratio_to_stats(shoulder_height_ratio, sat, val)
-    # TODO: height を使った補正をここに入れる (例: 背が高いほど attack にボーナス)
-    return stats["attack"], stats["speed"]
+    # 背が高いほど攻撃寄り、低いほど素早い
+    attack = round(40 + t * 80)
+    speed = round(120 - t * 80)
+
+    # 鮮やかな服ほど攻撃寄り、明るい服ほど素早い (彩度・明度は 0〜255)
+    attack += round(sat / 255 * 20)
+    speed += round(val / 255 * 20)
+
+    return max(1, attack), max(1, speed)
 
 
 def _touch(conn, person_id: int, **fields):
@@ -172,8 +179,8 @@ def run_pipeline(person_id: int):
 
         _touch(conn, person_id, status="processing")
 
-        # rembg / mediapipe の import は数秒かかるので、起動時ではなくここで読む
-        from image_Processing import remove_background, estimate_physique
+        # rembg の import は数秒かかるので、起動時ではなくここで読む
+        from image_Processing import remove_background
         from color_extraction import extract_clothing_color
 
         before = IMAGES / row["before_path"]
@@ -182,14 +189,11 @@ def run_pipeline(person_id: int):
 
         remove_background(before, after)
 
-        # 体格の推定は背景ありの原本のほうが安定するので before を渡す
-        shoulder_height_ratio, _torso_box, _img, _landmarks = estimate_physique(before)
-
-        # 色は「処理後の画像から抽出する」フローなので after を渡す
+        # 色は背景除去後の画像から取る (人物のアルファをマスクに使うため after を渡す)
         color = extract_clothing_color(after)
 
         attack, speed = compute_stats(
-            shoulder_height_ratio, color["saturation"], color["value"], row["height"]
+            color["saturation"], color["value"], row["height"]
         )
 
         _touch(
@@ -201,7 +205,6 @@ def run_pipeline(person_id: int):
             r=color["rgb"]["r"],
             g=color["rgb"]["g"],
             b=color["rgb"]["b"],
-            attribute=color["attribute"],
             attack=attack,
             speed=speed,
             status="done",
@@ -234,6 +237,9 @@ def to_json(row: sqlite3.Row) -> dict:
     # Unity 側は URL がそのまま欲しいので、相対パスを URL に組み立てて渡す
     d["before_url"] = f"/images/{d['before_path']}" if d.get("before_path") else ""
     d["after_url"] = f"/images/{d['after_path']}" if d.get("after_path") else ""
+    # 掛け声はまだ作っていない。Unity は空文字なら音声なしで進むので、
+    # 契約だけ先に通しておく (実装したらここに URL を入れれば Unity 側は無改修)
+    d["audio_url"] = ""
     return d
 
 
@@ -278,11 +284,20 @@ async def upload(
 
 
 @app.get("/api/persons")
-def list_persons():
-    """Unity 用。処理が完走した行だけ返す。"""
+def list_persons(limit: int = 100):
+    """Unity 用。処理が完走し、テクスチャが出来ている行だけ返す。
+
+    並びは新しい順。Unity は受け取った配列の先頭から fetchLimit 件しか見ないので、
+    古い順にすると人数が増えたとき錬成直後の1件が末尾で切り捨てられ、
+    ForgeRoutine の新着待ちが永久に終わらなくなる。
+    """
+    limit = max(1, min(limit, 500))
     conn = connect()
     rows = conn.execute(
-        "SELECT * FROM persons WHERE status='done' ORDER BY id"
+        "SELECT * FROM persons"
+        " WHERE status='done' AND after_path IS NOT NULL AND after_path <> ''"
+        " ORDER BY id DESC LIMIT ?",
+        (limit,),
     ).fetchall()
     conn.close()
 
