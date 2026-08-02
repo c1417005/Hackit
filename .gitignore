@@ -43,6 +43,15 @@ crashlytics-build.properties
 # 「Recovering Scene Backups」で Yes を押すと生える。本物は Assets/Scenes/ 配下
 **/[Aa]ssets/_[Rr]ecovery/
 **/[Aa]ssets/_[Rr]ecovery.meta
+# Generated outputs (images, logs)
+output/
+*.log
+images/
+
+# SQLite (各自のローカルで自動生成されるので共有しない)
+*.db
+*.db-wal
+*.db-shm
 
 # ---- Addressables ----
 # 途中にスラッシュがあるパターンは .gitignore のある階層に固定される。
