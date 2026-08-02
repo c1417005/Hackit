@@ -8,7 +8,7 @@ using UnityEngine.Networking;
 /// <summary>
 /// 剣データの取得元。
 ///
-/// `source` で3つを切り替える。どれで失敗しても最後はモックに落ちるので、
+/// `source` で取得元を切り替える。どれで失敗しても最後はモックに落ちるので、
 /// デモが止まることはない。
 /// </summary>
 public class SwordRepository : MonoBehaviour
@@ -21,12 +21,15 @@ public class SwordRepository : MonoBehaviour
         /// <summary>StreamingAssets のローカル SQLite</summary>
         Sqlite,
 
+        /// <summary>backend/run_dbtest_server.py がtest.dbを公開するローカルAPI</summary>
+        LocalApi,
+
         /// <summary>Supabase REST API</summary>
         Supabase,
     }
 
     [Header("接続先")]
-    public Source source = Source.Sqlite;
+    public Source source = Source.LocalApi;
 
     [Tooltip("後方互換。ONだと source を無視して Mock になる")]
     public bool useMock;
@@ -34,6 +37,10 @@ public class SwordRepository : MonoBehaviour
     [Header("SQLite")]
     [Tooltip("StreamingAssets からの相対パス")]
     public string sqliteFileName = "tomodachi_sword.db";
+
+    [Header("ローカルAPI / test.db")]
+    [Tooltip("同じPCでrun_dbtest_server.pyを起動した場合のURL")]
+    public string localApiBaseUrl = "http://127.0.0.1:8000";
 
     [Header("Supabase")]
     [Tooltip("例: https://xxxxx.supabase.co")]
@@ -44,95 +51,11 @@ public class SwordRepository : MonoBehaviour
 
     public int fetchLimit = 30;
 
-    [Header("Backend DB接続テスト")]
-    [Tooltip("再生開始時に backend/main.py の /dbtest を読み、Unity Consoleへ表示する")]
-    public bool logBackendDatabaseOnStart = true;
-
-    [Tooltip("FastAPIのDBテストAPI。別PCで起動する場合は127.0.0.1をそのPCのIPに変える")]
-    public string backendDbTestUrl = "http://127.0.0.1:8000/dbtest";
-
     [Header("モック")]
     public int mockCount = 8;
 
     /// <summary>StreamingAssets 内の DB の絶対パス。</summary>
     public string SqlitePath => Path.Combine(Application.streamingAssetsPath, sqliteFileName);
-
-    void Start()
-    {
-        if (logBackendDatabaseOnStart)
-        {
-            StartCoroutine(LogBackendDatabaseToConsole());
-        }
-    }
-
-    /// <summary>FastAPI経由でpersonsテーブルを読み、取得結果をUnity Consoleに表示する結合テスト。</summary>
-    public IEnumerator LogBackendDatabaseToConsole()
-    {
-        if (string.IsNullOrWhiteSpace(backendDbTestUrl))
-        {
-            Debug.LogWarning("[BackendDB Test] URLが未設定です");
-            yield break;
-        }
-
-        Debug.Log($"[BackendDB Test] 取得開始: {backendDbTestUrl}");
-
-        using (UnityWebRequest request = UnityWebRequest.Get(backendDbTestUrl))
-        {
-            request.timeout = 5;
-            yield return request.SendWebRequest();
-
-            if (request.result != UnityWebRequest.Result.Success)
-            {
-                Debug.LogWarning(
-                    $"[BackendDB Test] 取得失敗: {request.error}\n" +
-                    "リポジトリ直下で python -m uvicorn backend.main:app --reload を実行してください。");
-                yield break;
-            }
-
-            string json = request.downloadHandler.text;
-            BackendPersonList response;
-
-            try
-            {
-                response = JsonUtility.FromJson<BackendPersonList>(json);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[BackendDB Test] JSONの解析に失敗: {e.Message}\n{json}");
-                yield break;
-            }
-
-            if (response?.persons == null)
-            {
-                Debug.LogError($"[BackendDB Test] personsを読み取れませんでした: {json}");
-                yield break;
-            }
-
-            Debug.Log($"[BackendDB Test] {response.persons.Length}件の取得に成功");
-            foreach (BackendPerson person in response.persons)
-            {
-                Debug.Log(
-                    $"[BackendDB Person] id={person.id}, name={person.name}, " +
-                    $"height={person.height}cm, speed={person.speed}, attack={person.attack}");
-            }
-        }
-    }
-
-    [Serializable]
-    sealed class BackendPersonList
-    {
-        public BackendPerson[] persons = Array.Empty<BackendPerson>();
-    }
-
-    [Serializable]
-    sealed class BackendPerson
-    {
-        public int id = 0;
-        public string name = "";
-        public int height = 0;
-        public int speed = 0;
-        public int attack = 0;
-    }
 
     Source ResolvedSource
     {
@@ -164,6 +87,12 @@ public class SwordRepository : MonoBehaviour
         {
             // SQLite は同期で読める。件数が知れているので待たせない。
             onDone?.Invoke(FetchSwordsFromSqlite());
+            yield break;
+        }
+
+        if (ResolvedSource == Source.LocalApi)
+        {
+            yield return FetchSwordsFromLocalApi(onDone);
             yield break;
         }
 
@@ -225,19 +154,22 @@ public class SwordRepository : MonoBehaviour
             yield break;
         }
 
-        using (var request = UnityWebRequestTexture.GetTexture(data.image_url))
+        string imageUrl = ResolveImageUrl(data.image_url);
+        using (var request = UnityWebRequestTexture.GetTexture(imageUrl))
         {
+            request.timeout = 10;
             yield return request.SendWebRequest();
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogWarning($"[SwordRepository] 画像の取得に失敗: {data.image_url} / {request.error}");
+                Debug.LogWarning($"[SwordRepository] 画像の取得に失敗: {imageUrl} / {request.error}");
                 onDone?.Invoke(GenerateSwordTexture(StableHash(data.id)));
                 yield break;
             }
 
             var texture = DownloadHandlerTexture.GetContent(request);
             texture.wrapMode = TextureWrapMode.Clamp;
+            Debug.Log($"[LocalAPI Image] {data.name}: {texture.width}x{texture.height} PNG取得成功");
             onDone?.Invoke(texture);
         }
     }
@@ -248,6 +180,13 @@ public class SwordRepository : MonoBehaviour
         if (ResolvedSource == Source.Sqlite)
         {
             onDone?.Invoke(WriteMatchToSqlite(winnerId, loserId));
+            yield break;
+        }
+
+        if (ResolvedSource == Source.LocalApi)
+        {
+            Debug.Log($"[SwordRepository] (LocalApi) 戦績はテストDBへは書き込まない: winner={winnerId} loser={loserId}");
+            onDone?.Invoke(true);
             yield break;
         }
 
@@ -279,6 +218,63 @@ public class SwordRepository : MonoBehaviour
 
             onDone?.Invoke(ok);
         }
+    }
+
+    // ---------- Local API ----------
+
+    IEnumerator FetchSwordsFromLocalApi(Action<List<SwordData>> onDone)
+    {
+        string url = LocalApiUrl("/swords");
+        Debug.Log($"[LocalAPI] test.dbの剣一覧を取得開始: {url}");
+
+        using (var request = UnityWebRequest.Get(url))
+        {
+            request.timeout = 10;
+            yield return request.SendWebRequest();
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogWarning($"[LocalAPI] 剣一覧の取得に失敗: {request.error} / モックを使う");
+                onDone?.Invoke(CreateMockSwords(mockCount));
+                yield break;
+            }
+
+            List<SwordData> swords = ParseSwordArray(request.downloadHandler.text);
+            if (swords.Count == 0)
+            {
+                Debug.LogWarning("[LocalAPI] test.dbの剣が0件なのでモックを使う");
+                swords = CreateMockSwords(mockCount);
+            }
+            else
+            {
+                Debug.Log($"[LocalAPI] test.dbから{swords.Count}件取得成功");
+                foreach (SwordData sword in swords)
+                {
+                    SwordStats stats = sword.stats ?? new SwordStats();
+                    Debug.Log(
+                        $"[LocalAPI Sword] id={sword.id}, name={sword.name}, " +
+                        $"height={stats.height_cm:0}cm, ATK={stats.attack}, " +
+                        $"DEF={stats.defense}, SPD={stats.speed}, image={sword.image_url}");
+                }
+            }
+
+            onDone?.Invoke(swords);
+        }
+    }
+
+    string LocalApiUrl(string path)
+    {
+        string baseUrl = string.IsNullOrEmpty(localApiBaseUrl)
+            ? "http://127.0.0.1:8000"
+            : localApiBaseUrl.TrimEnd('/');
+        return path.StartsWith("/") ? baseUrl + path : baseUrl + "/" + path;
+    }
+
+    string ResolveImageUrl(string imageUrl)
+    {
+        if (string.IsNullOrEmpty(imageUrl)) return imageUrl;
+        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out _)) return imageUrl;
+        return LocalApiUrl(imageUrl);
     }
 
     // ---------- SQLite ----------

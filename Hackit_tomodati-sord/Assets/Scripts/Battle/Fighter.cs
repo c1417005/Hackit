@@ -286,6 +286,16 @@ public class Fighter : MonoBehaviour
         _metrics = SwordBuilder.GetMetrics(data);
         _swordRoot = SwordBuilder.Build(data, texture, _swordPivot);
 
+        SwordStats equippedStats = GetStats();
+        Transform generatedBlade = _swordRoot != null ? _swordRoot.transform.Find("Blade") : null;
+        bool generated3dModel = generatedBlade != null
+            && generatedBlade.GetComponent<TposeSwordModelInstance>() != null;
+        Debug.Log(
+            $"[Model Equip] Player {playerIndex + 1}: name={data?.name}, " +
+            $"3DModel={generated3dModel}, texture={(texture != null ? $"{texture.width}x{texture.height}" : "none")}, " +
+            $"height={_metrics.heightCm:0}cm, modelLength={_metrics.modelLength:0.000}, " +
+            $"ATK={equippedStats.attack}, DEF={equippedStats.defense}, SPD={equippedStats.speed}");
+
         var hitboxObject = new GameObject("Hitbox");
         hitboxObject.transform.SetParent(_swordRoot.transform, false);
 
