@@ -1,5 +1,4 @@
-# ---- Unity が再生成するもの（絶対に上げない） ----
-# Library は 3GB 超あるが、Assets と ProjectSettings から作り直せる
+# ---- Unity generated files ----
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
@@ -11,7 +10,7 @@
 [Rr]ecordings/
 ProfilerCaptures/
 
-# ---- IDE が作るもの ----
+# ---- IDE generated files ----
 .vs/
 .vscode/
 .idea/
@@ -29,8 +28,9 @@ ProfilerCaptures/
 *.mdb
 *.opendb
 *.VC.db
+*.swp
 
-# ---- ビルド成果物 ----
+# ---- Build outputs ----
 *.apk
 *.aab
 *.app
@@ -38,34 +38,47 @@ ProfilerCaptures/
 sysinfo.txt
 crashlytics-build.properties
 
-# ---- Python補助スクリプトの一時ファイル ----
+# ---- Python backend generated files ----
 __pycache__/
 *.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+.pytest_cache/
+output/
+*.log
+images/
 
-# ---- クラッシュ復旧のシーンバックアップ ----
-# 「Recovering Scene Backups」で Yes を押すと生える。本物は Assets/Scenes/ 配下
+# ---- OS files ----
+.DS_Store
+Thumbs.db
+
+# ---- Unity crash recovery ----
 **/[Aa]ssets/_[Rr]ecovery/
 **/[Aa]ssets/_[Rr]ecovery.meta
 
-# ---- Addressables ----
-# 途中にスラッシュがあるパターンは .gitignore のある階層に固定される。
-# Unity プロジェクトは Hackit_tomodati-sord/Assets/... と1階層下なので ** が要る。
+# ---- Addressables runtime output ----
 **/[Aa]ssets/[Ss]treamingAssets/aa.meta
 **/[Aa]ssets/[Ss]treamingAssets/aa/*
 
-# ---- 本番の人物写真は上げない ----
-# 切り抜き前後どちらも個人が写っている。テスト用の tomodachi_sword.db は上げて良い
+# ---- Do not commit real-person photos ----
 **/[Aa]ssets/[Ss]treamingAssets/photos/
 **/[Aa]ssets/[Ss]treamingAssets/swords/
 
-# ---- エージェントのローカル設定 ----
-# 秘密情報は無いが、このPC固有の絶対パスが入っていて他の人には使えない
+# ---- Local agent and dependency settings ----
 .claude/settings.local.json
 .codex/
 .mcp.json
+/work/
 
 # Local Windows player builds
 /Builds/
 
-# ---- 注意 ----
-# *.meta は Unity が参照を保つのに必須。絶対に無視しないこと
+# Database backup created before merging feature/backend
+*.local-before-backend
+
+# Unity .meta files must remain tracked.
