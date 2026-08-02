@@ -6,21 +6,39 @@ import sqlite3
 
 # /=== DB部
 dbname = "my.db"
-conn = sqlite3.connect(dbname)
-cur = conn.cursor()
 
-cur.execute(
-    'CREATE TABLE persons(' \
-    'id INTEGER PRIMARY KEY AUTOINCREMENT,' \
-    'name STRING,'
-    'height INTEGER,'
-    'speed INTEGER,'
-    'attack INTEGER,'
 
-    ')'
-)
+def init_db():
+    conn = sqlite3.connect(dbname)
+    cur = conn.cursor()
 
-conn.close()
+    cur.execute(
+        'CREATE TABLE IF NOT EXISTS persons('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        'name TEXT,'
+        'height INTEGER,'
+        'speed INTEGER,'
+        'attack INTEGER'
+        ')'
+    )
+
+    # 接続テスト用のダミーデータ (テーブルが空のときだけ入れる)
+    cur.execute('SELECT COUNT(*) FROM persons')
+    if cur.fetchone()[0] == 0:
+        cur.executemany(
+            'INSERT INTO persons(name, height, speed, attack) VALUES(?, ?, ?, ?)',
+            [
+                ("テスト太郎", 170, 12, 34),
+                ("テスト花子", 160, 25, 18),
+                ("ずんだもん", 150, 40, 5),
+            ],
+        )
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
 # ===/
 
 
@@ -37,6 +55,19 @@ state = {"version": 0}
 @app.get("/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/dbtest")
+def dbtest():
+    conn = sqlite3.connect(dbname)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT id, name, height, speed, attack FROM persons ORDER BY id"
+    ).fetchall()
+    conn.close()
+
+    # Unity の JsonUtility はトップレベルの配列を読めないので dict で包む
+    return {"persons": [dict(r) for r in rows]}
 
 
 @app.post("/api/upload")
