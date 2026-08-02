@@ -44,11 +44,95 @@ public class SwordRepository : MonoBehaviour
 
     public int fetchLimit = 30;
 
+    [Header("Backend DB接続テスト")]
+    [Tooltip("再生開始時に backend/main.py の /dbtest を読み、Unity Consoleへ表示する")]
+    public bool logBackendDatabaseOnStart = true;
+
+    [Tooltip("FastAPIのDBテストAPI。別PCで起動する場合は127.0.0.1をそのPCのIPに変える")]
+    public string backendDbTestUrl = "http://127.0.0.1:8000/dbtest";
+
     [Header("モック")]
     public int mockCount = 8;
 
     /// <summary>StreamingAssets 内の DB の絶対パス。</summary>
     public string SqlitePath => Path.Combine(Application.streamingAssetsPath, sqliteFileName);
+
+    void Start()
+    {
+        if (logBackendDatabaseOnStart)
+        {
+            StartCoroutine(LogBackendDatabaseToConsole());
+        }
+    }
+
+    /// <summary>FastAPI経由でpersonsテーブルを読み、取得結果をUnity Consoleに表示する結合テスト。</summary>
+    public IEnumerator LogBackendDatabaseToConsole()
+    {
+        if (string.IsNullOrWhiteSpace(backendDbTestUrl))
+        {
+            Debug.LogWarning("[BackendDB Test] URLが未設定です");
+            yield break;
+        }
+
+        Debug.Log($"[BackendDB Test] 取得開始: {backendDbTestUrl}");
+
+        using (UnityWebRequest request = UnityWebRequest.Get(backendDbTestUrl))
+        {
+            request.timeout = 5;
+            yield return request.SendWebRequest();
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogWarning(
+                    $"[BackendDB Test] 取得失敗: {request.error}\n" +
+                    "リポジトリ直下で python -m uvicorn backend.main:app --reload を実行してください。");
+                yield break;
+            }
+
+            string json = request.downloadHandler.text;
+            BackendPersonList response;
+
+            try
+            {
+                response = JsonUtility.FromJson<BackendPersonList>(json);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[BackendDB Test] JSONの解析に失敗: {e.Message}\n{json}");
+                yield break;
+            }
+
+            if (response?.persons == null)
+            {
+                Debug.LogError($"[BackendDB Test] personsを読み取れませんでした: {json}");
+                yield break;
+            }
+
+            Debug.Log($"[BackendDB Test] {response.persons.Length}件の取得に成功");
+            foreach (BackendPerson person in response.persons)
+            {
+                Debug.Log(
+                    $"[BackendDB Person] id={person.id}, name={person.name}, " +
+                    $"height={person.height}cm, speed={person.speed}, attack={person.attack}");
+            }
+        }
+    }
+
+    [Serializable]
+    sealed class BackendPersonList
+    {
+        public BackendPerson[] persons = Array.Empty<BackendPerson>();
+    }
+
+    [Serializable]
+    sealed class BackendPerson
+    {
+        public int id = 0;
+        public string name = "";
+        public int height = 0;
+        public int speed = 0;
+        public int attack = 0;
+    }
 
     Source ResolvedSource
     {
