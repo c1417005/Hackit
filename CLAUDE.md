@@ -68,7 +68,7 @@ matches (id INTEGER PK AUTOINCREMENT, winner_id TEXT, loser_id TEXT, created_at 
 
 - UnityはサーバーPCを経由せず、Supabase REST API を直接読み書きする
 - 画像処理とステータス算出はアップロード時に完走させる。Unityは完成済みPNGを落とすだけ
-- 背景透過済みTポーズPNGの輪郭を押し出し、身長別の小・中・大の雛型設定で3Dモデルを実行時生成する
+- 背景透過済みTポーズPNGの輪郭を押し出し、共通の形状設定と身長比例の長さで3Dモデルを実行時生成する
 - ステータスは生成AIに全任せせず、画像から機械的に算出する（再現性とバランスのため）
 
 ## 4. データ契約（チーム間で確定済み・変更禁止）
@@ -86,7 +86,7 @@ matches (id INTEGER PK AUTOINCREMENT, winner_id TEXT, loser_id TEXT, created_at 
 ```
 
 - `attack` / `defense` / `speed` : 合計120ポイントを配分した値
-- `height_cm` : 撮影した人物の身長。モデル長は `height_cm × (1.5 / 170)`。160cm未満=小、160〜180cm未満=中、180cm以上=大の調整設定を選ぶ
+- `height_cm` : 撮影した人物の身長。モデル長は `height_cm × (1.5 / 170)`。頭位置・横幅上限・厚みは全員共通設定を使う
 - 一覧取得: `GET /rest/v1/swords?select=*&order=created_at.desc&limit=30`
 - 戦績送信: `POST /rest/v1/matches` body `{"winner_id": "...", "loser_id": "..."}`
 - ヘッダ: `apikey` と `Authorization: Bearer <anon key>`

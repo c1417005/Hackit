@@ -814,7 +814,7 @@ public class Fighter : MonoBehaviour
     {
         return Sword != null && Sword.stats != null
             ? Sword.stats
-            : new SwordStats(40, 40, 40, TposeSwordTemplateSelector.DefaultHeightCm);
+            : new SwordStats(40, 40, 40, TposeSwordTemplateSettings.DefaultHeightCm);
     }
 
     IEnumerator FlashBlade()

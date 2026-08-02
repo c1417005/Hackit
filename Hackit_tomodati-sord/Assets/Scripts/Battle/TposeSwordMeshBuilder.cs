@@ -37,9 +37,9 @@ public static class TposeSwordMeshBuilder
 
         Color32[] pixels = GetReadablePixels(texture, out int pixelWidth, out int pixelHeight);
         Mesh mesh = BuildMesh(pixels, pixelWidth, pixelHeight, metrics, profile);
-        mesh.name = $"TposeSword3DMesh_{profile.heightClass}";
+        mesh.name = "TposeSword3DMesh";
 
-        var blade = new GameObject($"Blade_{profile.heightClass}");
+        var blade = new GameObject("Blade");
         blade.transform.SetParent(parent, false);
 
         // 元画像では頭から脚が下へ伸びる。剣では頭を握りにして脚を+Y（剣先）へ向ける。
@@ -59,8 +59,8 @@ public static class TposeSwordMeshBuilder
         var resources = blade.AddComponent<TposeSwordRuntimeResources>();
         resources.Configure(mesh, frontMaterial, sideMaterial);
 
-        var templateInstance = blade.AddComponent<TposeSwordTemplateInstance>();
-        templateInstance.Configure(profile, heightCm);
+        var modelInstance = blade.AddComponent<TposeSwordModelInstance>();
+        modelInstance.Configure(heightCm);
 
         return blade;
     }
@@ -120,7 +120,7 @@ public static class TposeSwordMeshBuilder
         // 腕が極端に長い・横幅の大きい人物はX方向だけ安全幅へ収める。
         // 身長方向と顔の縦横比は維持し、横幅が必要な時だけ体と腕を圧縮する。
         float visibleWorldWidth = contentBounds.width * imageWorldWidth;
-        float maximumVisibleWidth = metrics.tipDistance * profile.maxWidthToBladeLength;
+        float maximumVisibleWidth = metrics.tipDistance * profile.maxWidthToModelLength;
         if (visibleWorldWidth > maximumVisibleWidth)
         {
             imageWorldWidth *= maximumVisibleWidth / visibleWorldWidth;
@@ -266,7 +266,7 @@ public static class TposeSwordMeshBuilder
         if (horizontalShortage || verticalShortage)
         {
             Debug.LogWarning(
-                $"[TposeSword] {profile.displayName}雛型の推奨透明余白より人物が外側です。" +
+                "[TposeSword] 共通設定の推奨透明余白より人物が外側です。" +
                 $" 実データは自動的に収めますが、OpenCV出力は左右{profile.requiredHorizontalPadding:P0}、" +
                 $"上下{profile.requiredVerticalPadding:P0}を推奨します。");
         }
@@ -406,17 +406,13 @@ sealed class TposeSwordRuntimeResources : MonoBehaviour
     }
 }
 
-/// <summary>生成済みモデルがどの身長雛型を使ったかInspectorで確認するための情報。</summary>
-sealed class TposeSwordTemplateInstance : MonoBehaviour
+/// <summary>生成済みモデルに使用した身長をInspectorで確認するための情報。</summary>
+sealed class TposeSwordModelInstance : MonoBehaviour
 {
-    [SerializeField] TposeSwordHeightClass heightClass;
-    [SerializeField] string templateName;
     [SerializeField] float heightCm;
 
-    public void Configure(TposeSwordTemplateProfile profile, float heightCm)
+    public void Configure(float heightCm)
     {
-        heightClass = profile.heightClass;
-        templateName = profile.displayName;
         this.heightCm = heightCm;
     }
 }

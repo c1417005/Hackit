@@ -42,7 +42,7 @@ public static class SwordBuilder
 
     public static Metrics GetMetrics(SwordData data)
     {
-        float heightCm = TposeSwordTemplateSelector.ResolveHeightCm(data);
+        float heightCm = TposeSwordTemplateSettings.ResolveHeightCm(data);
         float modelLength = heightCm * HeightToModelLength;
         float bladeLength = Mathf.Max(0.1f, modelLength - GripOffset);
         float modelScale = modelLength / ReferenceModelLength;
@@ -66,7 +66,7 @@ public static class SwordBuilder
     {
         Metrics metrics = GetMetrics(data);
         float heightCm = metrics.heightCm;
-        TposeSwordTemplateProfile profile = TposeSwordTemplateSelector.SelectFromHeightCm(heightCm);
+        TposeSwordTemplateProfile profile = TposeSwordTemplateSettings.Profile;
 
         var root = new GameObject(data != null && !string.IsNullOrEmpty(data.name) ? data.name : "Sword");
         root.transform.SetParent(parent, false);
