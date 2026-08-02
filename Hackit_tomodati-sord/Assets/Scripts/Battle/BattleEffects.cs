@@ -15,6 +15,8 @@ public sealed class BattleEffects : MonoBehaviour
     RectTransform _canvasRect;
     AudioSource _audio;
     AudioSource _music;
+    AudioClip _swingSound;
+    AudioClip _heavySwingSound;
     AudioClip _hitSound;
 
     static BattleEffects Instance
@@ -46,6 +48,8 @@ public sealed class BattleEffects : MonoBehaviour
         _audio.playOnAwake = false;
         _audio.spatialBlend = 0f;
         _audio.volume = 0.72f;
+        _swingSound = BuildCartoonSwingClip(false);
+        _heavySwingSound = BuildCartoonSwingClip(true);
         _hitSound = BuildImpactClip();
 
         _music = gameObject.AddComponent<AudioSource>();
@@ -67,6 +71,13 @@ public sealed class BattleEffects : MonoBehaviour
         Instance.StartCoroutine(Instance.ImpactRoutine(worldPosition, damage, attackerIndex));
         Instance._audio.PlayOneShot(Instance._hitSound);
         BattleCamera.Shake(0.16f, 0.20f);
+    }
+
+    public static void PlayAttack(Fighter.AttackKind kind, Fighter.WeaponMode mode)
+    {
+        bool heavy = kind == Fighter.AttackKind.Horizontal || mode == Fighter.WeaponMode.Axe;
+        AudioClip clip = heavy ? Instance._heavySwingSound : Instance._swingSound;
+        Instance._audio.PlayOneShot(clip, 0.58f);
     }
 
     public static void PlayCountdown(Action onComplete)
@@ -293,18 +304,51 @@ public sealed class BattleEffects : MonoBehaviour
     static AudioClip BuildImpactClip()
     {
         const int sampleRate = 44100;
-        int samples = Mathf.RoundToInt(sampleRate * 0.11f);
+        const float duration = 0.19f;
+        int samples = Mathf.RoundToInt(sampleRate * duration);
         float[] data = new float[samples];
         for (int i = 0; i < samples; i++)
         {
             float t = i / (float)sampleRate;
-            float envelope = Mathf.Exp(-t * 34f);
-            float tone = Mathf.Sin(t * Mathf.PI * 2f * 170f);
-            float noise = UnityEngine.Random.Range(-1f, 1f) * 0.48f;
-            data[i] = (tone * 0.55f + noise) * envelope;
+            float bonkEnvelope = Mathf.Exp(-t * 15f);
+            float bonkPhase = 520f * t - 900f * t * t;
+            float bonk = Mathf.Sin(2f * Mathf.PI * bonkPhase) * bonkEnvelope * 0.62f;
+
+            float springDelay = Mathf.Max(0f, t - 0.025f);
+            float springEnvelope = springDelay > 0f ? Mathf.Exp(-springDelay * 18f) : 0f;
+            float springPhase = 760f * springDelay - 1250f * springDelay * springDelay;
+            float spring = Mathf.Sin(2f * Mathf.PI * springPhase) * springEnvelope * 0.28f;
+
+            float click = UnityEngine.Random.Range(-1f, 1f) * Mathf.Exp(-t * 90f) * 0.13f;
+            data[i] = Mathf.Clamp(bonk + spring + click, -0.92f, 0.92f);
         }
 
-        AudioClip clip = AudioClip.Create("SwordImpact", samples, 1, sampleRate, false);
+        AudioClip clip = AudioClip.Create("CartoonSwordBonk", samples, 1, sampleRate, false);
+        clip.SetData(data, 0);
+        return clip;
+    }
+
+    static AudioClip BuildCartoonSwingClip(bool heavy)
+    {
+        const int sampleRate = 44100;
+        float duration = heavy ? 0.22f : 0.16f;
+        int samples = Mathf.RoundToInt(sampleRate * duration);
+        float[] data = new float[samples];
+        for (int i = 0; i < samples; i++)
+        {
+            float t = i / (float)sampleRate;
+            float normalized = t / duration;
+            float envelope = Mathf.Pow(Mathf.Sin(normalized * Mathf.PI), 0.65f);
+            float startHz = heavy ? 150f : 260f;
+            float riseHz = heavy ? 230f : 420f;
+            float phase = startHz * t + riseHz * t * t / (2f * duration);
+            float whistle = Mathf.Sin(2f * Mathf.PI * phase) * 0.34f;
+            float wobble = Mathf.Sin(2f * Mathf.PI * (phase * 1.95f + Mathf.Sin(t * 42f) * 0.08f)) * 0.10f;
+            float air = UnityEngine.Random.Range(-1f, 1f) * (heavy ? 0.09f : 0.055f);
+            data[i] = Mathf.Clamp((whistle + wobble + air) * envelope, -0.72f, 0.72f);
+        }
+
+        AudioClip clip = AudioClip.Create(heavy ? "CartoonSwingHeavy" : "CartoonSwing", samples, 1, sampleRate, false);
         clip.SetData(data, 0);
         return clip;
     }

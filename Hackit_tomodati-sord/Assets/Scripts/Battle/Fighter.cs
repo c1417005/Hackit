@@ -604,6 +604,7 @@ public class Fighter : MonoBehaviour
         _hitThisAttack = false;
         SetReadyGauge(0f);
         PlayModelMotionVoice(kind);
+        BattleEffects.PlayAttack(kind, CurrentMode);
 
         float duration = AttackDuration;
         float windupTime = duration * windupRatio;

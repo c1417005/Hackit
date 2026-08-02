@@ -264,12 +264,12 @@ public class ForgeUI : MonoBehaviour
 
         _revealFlash = CreateRawImage(_revealPanel, "RevealFlash", new Color(1f, 0.76f, 0.20f, 0f));
         _revealFlash.rectTransform.anchorMin = _revealFlash.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-        _revealFlash.rectTransform.sizeDelta = new Vector2(900f, 900f);
+        _revealFlash.rectTransform.sizeDelta = new Vector2(1100f, 1100f);
 
         var revealHeadGo = new GameObject("RevealHeadline", typeof(RectTransform)).GetComponent<RectTransform>();
         revealHeadGo.SetParent(_revealPanel, false);
         revealHeadGo.anchorMin = revealHeadGo.anchorMax = new Vector2(0.5f, 0.5f);
-        revealHeadGo.anchoredPosition = new Vector2(0f, 380f);
+        revealHeadGo.anchoredPosition = new Vector2(0f, 420f);
         _revealHeadline = revealHeadGo.gameObject.AddComponent<WavyText>();
         _revealHeadline.fontSize = 58;
         _revealHeadline.waveHeight = 7f;
@@ -277,14 +277,14 @@ public class ForgeUI : MonoBehaviour
 
         _revealSword = CreateRawImage(_revealPanel, "Sword", Color.white);
         _revealSword.rectTransform.anchorMin = _revealSword.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-        _revealSword.rectTransform.sizeDelta = new Vector2(150f, 420f);
-        _revealSword.rectTransform.anchoredPosition = new Vector2(0f, 10f);
+        _revealSword.rectTransform.sizeDelta = new Vector2(220f, 610f);
+        _revealSword.rectTransform.anchoredPosition = new Vector2(0f, -5f);
 
         _revealName = CreateText(_revealPanel, "Name", 44, TextAnchor.MiddleCenter, Color.white);
-        _revealName.rectTransform.anchoredPosition = new Vector2(0f, 300f);
+        _revealName.rectTransform.anchoredPosition = new Vector2(0f, 340f);
 
         _revealStats = CreateText(_revealPanel, "Stats", 30, TextAnchor.MiddleCenter, new Color(0.72f, 0.88f, 1f));
-        _revealStats.rectTransform.anchoredPosition = new Vector2(0f, -330f);
+        _revealStats.rectTransform.anchoredPosition = new Vector2(0f, -350f);
 
         _revealPrompt = CreateText(_revealPanel, "Prompt", 34, TextAnchor.MiddleCenter, new Color(1f, 0.86f, 0.4f));
         _revealPrompt.rectTransform.anchorMin = new Vector2(0.5f, 0f);
@@ -372,8 +372,15 @@ public class ForgeUI : MonoBehaviour
             if (texture != null && texture.height > 0)
             {
                 float aspect = texture.width / (float)texture.height;
-                float height = 420f;
-                _revealSword.rectTransform.sizeDelta = new Vector2(Mathf.Min(380f, height * aspect), height);
+                float height = 610f;
+                float width = height * aspect;
+                const float maxWidth = 660f;
+                if (width > maxWidth)
+                {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+                _revealSword.rectTransform.sizeDelta = new Vector2(width, height);
             }
 
             _revealName.text = sword != null ? sword.name : "";
@@ -383,8 +390,8 @@ public class ForgeUI : MonoBehaviour
             _revealPrompt.text = "×  つぎへ";
 
             _drawStarted = Time.unscaledTime;
-            _revealSword.rectTransform.anchoredPosition = new Vector2(0f, -520f);
-            _revealSword.rectTransform.localScale = new Vector3(0.45f, 0.45f, 1f);
+            _revealSword.rectTransform.anchoredPosition = new Vector2(0f, -680f);
+            _revealSword.rectTransform.localScale = new Vector3(0.35f, 0.35f, 1f);
             _revealSword.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -10f);
 
             AudioClip voice = _duel.GetVoice(sword);
@@ -453,8 +460,8 @@ public class ForgeUI : MonoBehaviour
         float eased = 1f - Mathf.Pow(1f - pull, 3f);
         float overshoot = Mathf.Sin(pull * Mathf.PI) * 42f;
 
-        _revealSword.rectTransform.anchoredPosition = new Vector2(0f, Mathf.Lerp(-520f, 10f, eased) + overshoot);
-        float scale = Mathf.Lerp(0.45f, 1f, eased);
+        _revealSword.rectTransform.anchoredPosition = new Vector2(0f, Mathf.Lerp(-680f, -5f, eased) + overshoot);
+        float scale = Mathf.Lerp(0.35f, 1f, eased);
         _revealSword.rectTransform.localScale = new Vector3(scale, scale, 1f);
         _revealSword.rectTransform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-10f, 0f, eased));
 
