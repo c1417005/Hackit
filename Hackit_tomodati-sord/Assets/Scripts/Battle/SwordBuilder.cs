@@ -6,11 +6,10 @@ using UnityEngine.Rendering;
 ///
 /// 階層:
 ///   SwordRoot(握り = 回転の中心)
-///     ├ Blade   … 切り抜き画像を貼った板ポリ(Quad)
-///     └ Spine   … 薄い芯。真横から見たときに厚みが出る
+///     └ Blade   … 切り抜き画像の輪郭を押し出した3Dメッシュ
 ///
-/// Quad のピボットは中心にあるため、そのまま回すと剣の真ん中を軸に回ってしまう。
-/// SwordRoot を握りの位置に置き、その子の Blade を上方向にオフセットしてある。
+/// 人物の頭付近がSwordRootの原点になり、胴体と脚が剣先方向へ伸びる。
+/// 画像が取得できなかった場合だけ、従来の板ポリへフォールバックする。
 ///
 /// 当たり判定はここでは作らない。Fighter側がMetricsを見て3D Triggerを設定する。
 /// </summary>
@@ -27,6 +26,7 @@ public static class SwordBuilder
     /// <summary>刃の寸法。当たり判定を作る側がこれを見る。</summary>
     public struct Metrics
     {
+        public float reach;
         public float bladeLength;
         public float bladeWidth;
 
@@ -45,6 +45,7 @@ public static class SwordBuilder
 
         return new Metrics
         {
+            reach = reach,
             bladeLength = bladeLength,
             bladeWidth = BladeWidth * reach,
             bladeCenterY = GripOffset + bladeLength * 0.5f,
@@ -59,22 +60,36 @@ public static class SwordBuilder
     public static GameObject Build(SwordData data, Texture2D texture, Transform parent)
     {
         Metrics metrics = GetMetrics(data);
+        float heightCm = TposeSwordTemplateSelector.ResolveHeightCm(data);
+        TposeSwordTemplateProfile profile = TposeSwordTemplateSelector.SelectFromHeightCm(heightCm);
 
         var root = new GameObject(data != null && !string.IsNullOrEmpty(data.name) ? data.name : "Sword");
         root.transform.SetParent(parent, false);
         root.transform.localPosition = Vector3.zero;
         root.transform.localRotation = Quaternion.identity;
 
-        // --- Blade : 板ポリ。カメラが横固定なのでこれで破綻しない ---
-        var blade = CreateMeshObject("Blade", PrimitiveType.Quad, root.transform);
+        if (texture != null)
+        {
+            TposeSwordMeshBuilder.Create(texture, metrics, profile, heightCm, root.transform);
+        }
+        else
+        {
+            BuildFlatFallback(metrics, root.transform);
+        }
+
+        return root;
+    }
+
+    /// <summary>画像取得前・失敗時でも対戦を止めないための従来表示。</summary>
+    static void BuildFlatFallback(Metrics metrics, Transform parent)
+    {
+        var blade = CreateMeshObject("Blade", PrimitiveType.Quad, parent);
         blade.transform.localPosition = new Vector3(0f, metrics.bladeCenterY, 0f);
         blade.transform.localScale = new Vector3(metrics.bladeWidth, metrics.bladeLength, 1f);
-        blade.GetComponent<MeshRenderer>().sharedMaterial = CreateSwordMaterial(texture);
+        blade.GetComponent<MeshRenderer>().sharedMaterial = CreateSwordMaterial(null);
 
         // Spine（薄い芯）は剣だった頃の名残。人のシルエットを縦に貫いて見えるので出さない。
         // 真横から見たときに消える問題は、カメラが横固定なので実際には起きない。
-
-        return root;
     }
 
     /// <summary>

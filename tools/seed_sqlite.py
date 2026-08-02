@@ -33,6 +33,7 @@ CREATE TABLE swords (
     defense    INTEGER NOT NULL,
     speed      INTEGER NOT NULL,
     reach      REAL    NOT NULL,
+    height_cm  REAL    NOT NULL,
     created_at TEXT    NOT NULL
 );
 
@@ -46,24 +47,30 @@ CREATE TABLE matches (
 CREATE INDEX idx_swords_created_at ON swords (created_at DESC);
 """
 
-# attack + defense + speed = 120 になるよう配る。reach は 0.8〜1.5。
+# attack + defense + speed = 120 になるよう配る。
+# 各タプル末尾の height_cm によって小・中・大の雛型が選ばれる。
 SWORDS = [
-    ("seed-0001", "たけしの剣",   45, 35, 40, 1.30),
-    ("seed-0002", "ゆうこの剣",   38, 48, 34, 1.00),
-    ("seed-0003", "けんたの剣",   42, 33, 45, 1.10),
-    ("seed-0004", "みさきの剣",   56, 38, 26, 1.45),
-    ("seed-0005", "しょうごの剣", 30, 55, 35, 0.85),
-    ("seed-0006", "あやのの剣",   47, 32, 41, 1.20),
-    ("seed-0007", "だいちの剣",   60, 30, 30, 1.50),
-    ("seed-0008", "りんの剣",     26, 26, 68, 0.80),
+    ("seed-0001", "たけしの剣",   45, 35, 40, 1.30, 174.0),
+    ("seed-0002", "ゆうこの剣",   38, 48, 34, 1.00, 158.0),
+    ("seed-0003", "けんたの剣",   42, 33, 45, 1.10, 168.0),
+    ("seed-0004", "みさきの剣",   56, 38, 26, 1.45, 182.0),
+    ("seed-0005", "しょうごの剣", 30, 55, 35, 0.85, 155.0),
+    ("seed-0006", "あやのの剣",   47, 32, 41, 1.20, 172.0),
+    ("seed-0007", "だいちの剣",   60, 30, 30, 1.50, 188.0),
+    ("seed-0008", "りんの剣",     26, 26, 68, 0.80, 152.0),
 ]
 
 
-def add_one(name: str, image_path: str | None = None) -> None:
+def add_one(
+    name: str,
+    image_path: str | None = None,
+    height_cm: float | None = None,
+) -> None:
     """Webからのアップロードを1件ぶん再現する。錬成待ちの動作確認用。
 
         python tools/seed_sqlite.py --add あたらしい剣
         python tools/seed_sqlite.py --add あたらしい剣 path/to/sword.png
+        python tools/seed_sqlite.py --add あたらしい剣 path/to/sword.png 172
 
     Unity 側は「起動時に無かった id」を新着として拾うので、
     ゲームを錬成待ちにしたままこれを叩けば検知される。
@@ -76,6 +83,8 @@ def add_one(name: str, image_path: str | None = None) -> None:
     defense = random.randint(25, max(26, 121 - attack - 25))
     speed = 120 - attack - defense
     reach = round(random.uniform(0.8, 1.5), 2)
+    if height_cm is None:
+        height_cm = round(random.uniform(145.0, 190.0), 1)
 
     blob = None
     if image_path:
@@ -85,8 +94,9 @@ def add_one(name: str, image_path: str | None = None) -> None:
     connection = sqlite3.connect(DB_PATH)
     try:
         connection.execute(
-            "INSERT INTO swords (id, name, image_url, image, attack, defense, speed, reach, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO swords "
+            "(id, name, image_url, image, attack, defense, speed, reach, height_cm, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 f"web-{uuid.uuid4().hex[:8]}",
                 name,
@@ -96,11 +106,13 @@ def add_one(name: str, image_path: str | None = None) -> None:
                 defense,
                 speed,
                 reach,
+                height_cm,
                 datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             ),
         )
         connection.commit()
-        print(f"追加: {name}  atk{attack}/def{defense}/spd{speed} reach{reach}"
+        print(f"追加: {name}  atk{attack}/def{defense}/spd{speed} "
+              f"reach{reach} height{height_cm}cm"
               f"  image={'あり' if blob else 'なし'}")
     finally:
         connection.close()
@@ -115,13 +127,14 @@ def main() -> None:
     try:
         connection.executescript(SCHEMA)
 
-        for index, (sword_id, name, attack, defense, speed, reach) in enumerate(SWORDS):
+        for index, (sword_id, name, attack, defense, speed, reach, height_cm) in enumerate(SWORDS):
             # created_at をずらして order by が意味を持つようにしておく
             created_at = f"2026-08-01T12:{index:02d}:00Z"
             connection.execute(
-                "INSERT INTO swords (id, name, image_url, image, attack, defense, speed, reach, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (sword_id, name, "", None, attack, defense, speed, reach, created_at),
+                "INSERT INTO swords "
+                "(id, name, image_url, image, attack, defense, speed, reach, height_cm, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (sword_id, name, "", None, attack, defense, speed, reach, height_cm, created_at),
             )
 
         connection.commit()
@@ -130,7 +143,8 @@ def main() -> None:
         print(f"{DB_PATH}")
         print(f"swords {total} 件")
         for row in connection.execute(
-            "SELECT id, name, attack, defense, speed, reach FROM swords ORDER BY created_at DESC"
+            "SELECT id, name, attack, defense, speed, reach, height_cm "
+            "FROM swords ORDER BY created_at DESC"
         ):
             print("  ", row, "合計", row[2] + row[3] + row[4])
     finally:
@@ -142,6 +156,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1] == "--add":
         add_one(sys.argv[2] if len(sys.argv) > 2 else "テストの剣",
-                sys.argv[3] if len(sys.argv) > 3 else None)
+                sys.argv[3] if len(sys.argv) > 3 else None,
+                float(sys.argv[4]) if len(sys.argv) > 4 else None)
     else:
         main()

@@ -57,10 +57,10 @@ tools/seed_sqlite.py                        ← テストデータを入れ直�
 ```
 
 テーブルは JSON の契約をそのまま平らにしたもの。`stats` のネストは無く
-`attack / defense / speed / reach` が列。`SwordRepository` が `SwordData` に組み直す。
+`attack / defense / speed / reach / height_cm` が列。`SwordRepository` が `SwordData` に組み直す。
 
 ```sql
-swords  (id TEXT PK, name TEXT, image_url TEXT, attack INT, defense INT, speed INT, reach REAL, created_at TEXT)
+swords  (id TEXT PK, name TEXT, image_url TEXT, image BLOB, attack INT, defense INT, speed INT, reach REAL, height_cm REAL, created_at TEXT)
 matches (id INTEGER PK AUTOINCREMENT, winner_id TEXT, loser_id TEXT, created_at TEXT)
 ```
 
@@ -68,7 +68,7 @@ matches (id INTEGER PK AUTOINCREMENT, winner_id TEXT, loser_id TEXT, created_at 
 
 - UnityはサーバーPCを経由せず、Supabase REST API を直接読み書きする
 - 画像処理とステータス算出はアップロード時に完走させる。Unityは完成済みPNGを落とすだけ
-- 3Dの剣モデルは生成しない。**板ポリ(Quad)に切り抜き画像を貼る**方式。カメラ横固定なので破綻しない
+- 背景透過済みTポーズPNGの輪郭を押し出し、身長別の小・中・大の雛型設定で3Dモデルを実行時生成する
 - ステータスは生成AIに全任せせず、画像から機械的に算出する（再現性とバランスのため）
 
 ## 4. データ契約（チーム間で確定済み・変更禁止）
@@ -80,13 +80,14 @@ matches (id INTEGER PK AUTOINCREMENT, winner_id TEXT, loser_id TEXT, created_at 
   "id": "uuid",
   "name": "たけしの剣",
   "image_url": "https://xxx.supabase.co/storage/v1/object/public/swords/uuid.png",
-  "stats": { "attack": 45, "defense": 35, "speed": 40, "reach": 1.3 },
+  "stats": { "attack": 45, "defense": 35, "speed": 40, "reach": 1.3, "height_cm": 172 },
   "created_at": "2026-08-01T12:00:00Z"
 }
 ```
 
 - `attack` / `defense` / `speed` : 合計120ポイントを配分した値
 - `reach` : 剣の長さ倍率（0.8〜1.5想定）
+- `height_cm` : 撮影した人物の身長。160cm未満=小、160〜180cm未満=中、180cm以上=大の雛型を選ぶ
 - 一覧取得: `GET /rest/v1/swords?select=*&order=created_at.desc&limit=30`
 - 戦績送信: `POST /rest/v1/matches` body `{"winner_id": "...", "loser_id": "..."}`
 - ヘッダ: `apikey` と `Authorization: Bearer <anon key>`

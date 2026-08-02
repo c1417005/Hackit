@@ -38,6 +38,10 @@ ProfilerCaptures/
 sysinfo.txt
 crashlytics-build.properties
 
+# ---- Python補助スクリプトの一時ファイル ----
+__pycache__/
+*.py[cod]
+
 # ---- クラッシュ復旧のシーンバックアップ ----
 # 「Recovering Scene Backups」で Yes を押すと生える。本物は Assets/Scenes/ 配下
 **/[Aa]ssets/_[Rr]ecovery/
