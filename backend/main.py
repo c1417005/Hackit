@@ -2,6 +2,27 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 import pathlib, shutil
+import sqlite3
+
+# /=== DB部
+dbname = "my.db"
+conn = sqlite3.connect(dbname)
+cur = conn.cursor()
+
+cur.execute(
+    'CREATE TABLE persons(' \
+    'id INTEGER PRIMARY KEY AUTOINCREMENT,' \
+    'name STRING,'
+    'height INTEGER,'
+    'speed INTEGER,'
+    'attack INTEGER,'
+
+    ')'
+)
+
+conn.close()
+# ===/
+
 
 app = FastAPI()
 app.add_middleware(

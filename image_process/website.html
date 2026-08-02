@@ -1,105 +1,180 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>ともだちソード - 撮影</title>
-<style>
-  :root {
-    --bg: #14121a;
-    --panel: #1e1b26;
-    --accent: #6ee7b7;
-    --accent-dim: #2d5a4a;
-    --text: #f2f0f5;
-    --text-dim: #948da3;
-    --danger: #ff6b6b;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 16px 40px;
-  }
-  h1 {
-    font-size: 20px;
-    letter-spacing: 0.02em;
-    margin: 8px 0 2px;
-  }
-  .sub {
-    color: var(--text-dim);
-    font-size: 13px;
-    margin-bottom: 24px;
-  }
-  .frame {
-    width: 100%;
-    max-width: 360px;
-    aspect-ratio: 3 / 4;
-    background: var(--panel);
-    border: 1px solid #2c2836;
-    border-radius: 16px;
-    overflow: hidden;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .frame img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .frame .placeholder {
-    color: var(--text-dim);
-    font-size: 14px;
-    text-align: center;
-    padding: 0 20px;
-  }
-  input[type=file] { display: none; }
-  .btn {
-    width: 100%;
-    max-width: 360px;
-    padding: 14px;
-    border-radius: 12px;
-    border: none;
-    font-size: 15px;
-    font-weight: 600;
-    margin-top: 14px;
-    cursor: pointer;
-    transition: opacity 0.15s ease, transform 0.1s ease;
-  }
-  .btn:active { transform: scale(0.98); }
-  .btn-capture {
-    background: var(--panel);
-    color: var(--text);
-    border: 1px solid #3a3548;
-  }
-  .btn-upload {
-    background: var(--accent);
-    color: #0d1f18;
-  }
-  .btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  .status {
-    max-width: 360px;
-    width: 100%;
-    margin-top: 14px;
-    font-size: 13px;
-    text-align: center;
-    min-height: 18px;
-  }
-  .status.ok { color: var(--accent); }
-  .status.err { color: var(--danger); }
-  .status.busy { color: var(--text-dim); }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>ともだちソード - 撮影</title>
+  <style>
+    :root {
+      --bg: #14121a;
+      --panel: #1e1b26;
+      --accent: #6ee7b7;
+      --accent-dim: #2d5a4a;
+      --text: #f2f0f5;
+      --text-dim: #948da3;
+      --danger: #ff6b6b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      font-size: 20px;
+      letter-spacing: 0.02em;
+      margin: 8px 0 2px;
+    }
+
+    .sub {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+
+    .frame {
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 3 / 4;
+      background: var(--panel);
+      border: 1px solid #2c2836;
+      border-radius: 16px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .frame .placeholder {
+      color: var(--text-dim);
+      font-size: 14px;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    input[type=file] {
+      display: none;
+    }
+
+    .field {
+      width: 100%;
+      max-width: 360px;
+      margin-top: 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 13px 12px;
+      border-radius: 12px;
+      border: 1px solid #3a3548;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+    }
+
+    .field input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .field input:focus,
+    .field select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .field select {
+      appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path fill='%23948da3' d='M1 1l5 5 5-5'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 12px;
+      padding-right: 36px;
+    }
+
+    .btn {
+      width: 100%;
+      max-width: 360px;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      margin-top: 14px;
+      cursor: pointer;
+      transition: opacity 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-capture {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid #3a3548;
+    }
+
+    .btn-upload {
+      background: var(--accent);
+      color: #0d1f18;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .status {
+      max-width: 360px;
+      width: 100%;
+      margin-top: 14px;
+      font-size: 13px;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    .status.ok {
+      color: var(--accent);
+    }
+
+    .status.err {
+      color: var(--danger);
+    }
+
+    .status.busy {
+      color: var(--text-dim);
+    }
+  </style>
 </head>
+
 <body>
 
   <h1>ともだちソード</h1>
@@ -111,74 +186,107 @@
   </div>
 
   <input type="file" id="fileInput" accept="image/*" capture="environment">
+  <div class="field">
+    <label for="nameInput">名前</label>
+    <input type="text" id="nameInput" placeholder="ともだちの名前" maxlength="20" autocomplete="off">
+  </div>
+
+  <div class="field">
+    <label for="heightInput">身長</label>
+    <select id="heightInput">
+      <option value="" disabled selected>身長を選んでね</option>
+    </select>
+  </div>
+
   <button class="btn btn-capture" id="captureBtn">📷 撮影する</button>
   <button class="btn btn-upload" id="uploadBtn" disabled>アップロード</button>
   <div class="status" id="status"></div>
 
-<script>
-  // ページと同じオリジンに送るので相対パスでよい
-  // (スマホからIPで開いてもそのまま動く)
-  const API_URL = "/api/upload";
+  <script>
+    // ページと同じオリジンに送るので相対パスでよい
+    // (スマホからIPで開いてもそのまま動く)
+    const API_URL = "/api/upload";
 
-  const fileInput = document.getElementById('fileInput');
-  const captureBtn = document.getElementById('captureBtn');
-  const uploadBtn = document.getElementById('uploadBtn');
-  const preview = document.getElementById('preview');
-  const placeholder = document.getElementById('placeholder');
-  const statusEl = document.getElementById('status');
+    const fileInput = document.getElementById('fileInput');
+    const captureBtn = document.getElementById('captureBtn');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const preview = document.getElementById('preview');
+    const placeholder = document.getElementById('placeholder');
+    const statusEl = document.getElementById('status');
+    const nameInput = document.getElementById('nameInput');
+    const heightInput = document.getElementById('heightInput');
 
-  let selectedFile = null;
+    let selectedFile = null;
 
-  captureBtn.addEventListener('click', () => fileInput.click());
-
-  fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    selectedFile = file;
-
-    const url = URL.createObjectURL(file);
-    preview.src = url;
-    preview.style.display = 'block';
-    placeholder.style.display = 'none';
-
-    uploadBtn.disabled = false;
-    setStatus('', '');
-  });
-
-  uploadBtn.addEventListener('click', async () => {
-    if (!selectedFile) return;
-
-    uploadBtn.disabled = true;
-    captureBtn.disabled = true;
-    setStatus('アップロード中...', 'busy');
-
-    const formData = new FormData();
-    formData.append('image', selectedFile, selectedFile.name || 'photo.jpg');
-
-    try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!res.ok) {
-        throw new Error(`サーバーエラー: ${res.status}`);
-      }
-
-      setStatus('アップロード完了！', 'ok');
-    } catch (err) {
-      setStatus(`失敗: ${err.message}`, 'err');
-    } finally {
-      uploadBtn.disabled = false;
-      captureBtn.disabled = false;
+    // 身長の選択肢を 130〜200cm まで 5cm 刻みで作る
+    for (let cm = 130; cm <= 200; cm += 10) {
+      const opt = document.createElement('option');
+      opt.value = cm;
+      opt.textContent = `${cm} cmくらい`;
+      heightInput.appendChild(opt);
     }
-  });
 
-  function setStatus(msg, type) {
-    statusEl.textContent = msg;
-    statusEl.className = 'status' + (type ? ' ' + type : '');
-  }
-</script>
+    // 写真・名前・身長がそろって初めてアップロードできる
+    function updateUploadState() {
+      uploadBtn.disabled = !(selectedFile && nameInput.value.trim() && heightInput.value);
+    }
+
+    nameInput.addEventListener('input', updateUploadState);
+    heightInput.addEventListener('change', updateUploadState);
+
+    captureBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      selectedFile = file;
+
+      const url = URL.createObjectURL(file);
+      preview.src = url;
+      preview.style.display = 'block';
+      placeholder.style.display = 'none';
+
+      updateUploadState();
+      setStatus('', '');
+    });
+
+    uploadBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      uploadBtn.disabled = true;
+      captureBtn.disabled = true;
+      setStatus('アップロード中...', 'busy');
+
+      const formData = new FormData();
+      formData.append('image', selectedFile, selectedFile.name || 'photo.jpg');
+      formData.append('name', nameInput.value.trim());
+      formData.append('height', heightInput.value);
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) {
+          throw new Error(`サーバーエラー: ${res.status}`);
+        }
+
+        setStatus('アップロード完了！', 'ok');
+      } catch (err) {
+        setStatus(`失敗: ${err.message}`, 'err');
+      } finally {
+        captureBtn.disabled = false;
+        updateUploadState();
+      }
+    });
+
+    function setStatus(msg, type) {
+      statusEl.textContent = msg;
+      statusEl.className = 'status' + (type ? ' ' + type : '');
+    }
+  </script>
 
 </body>
+
 </html>
