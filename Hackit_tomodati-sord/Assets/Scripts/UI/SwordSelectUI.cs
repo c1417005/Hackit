@@ -14,6 +14,8 @@ public class SwordSelectUI : MonoBehaviour
         new Color(1f, 0.25f, 0.20f),
     };
 
+    static readonly string[] StatLabels = { "ATTACK", "SPEED", "SIZE" };
+
     DuelManager _duel;
     Canvas _canvas;
     Text _title;
@@ -24,7 +26,7 @@ public class SwordSelectUI : MonoBehaviour
     readonly Text[] _names = new Text[2];
     readonly Text[] _states = new Text[2];
     readonly RawImage[,] _barFills = new RawImage[2, 3];
-    readonly Text[,] _barValues = new Text[2, 3];
+    readonly Text[,] _barLabels = new Text[2, 3];
     readonly int[] _cursor = new int[2];
     readonly bool[] _stickLatched = new bool[2];
     static Font _font;
@@ -116,7 +118,6 @@ public class SwordSelectUI : MonoBehaviour
         SetRect(arrows.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -310f), new Vector2(0f, 70f));
         arrows.text = "〈                                      〉";
 
-        string[] labels = { "攻撃力  ATTACK", "素早さ  SPEED", "サイズ  SIZE" };
         Color[] colors =
         {
             new Color(1f, 0.28f, 0.20f),
@@ -126,13 +127,13 @@ public class SwordSelectUI : MonoBehaviour
 
         for (int stat = 0; stat < 3; stat++)
         {
-            float y = -635f - stat * 62f;
-            Text label = CreateText(panel, labels[stat], 24, TextAnchor.MiddleLeft, Color.white);
-            SetRect(label.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(100f, y), new Vector2(190f, 34f));
+            float y = -590f - stat * 82f;
+            Text label = CreateText(panel, StatLabels[stat], 30, TextAnchor.MiddleLeft, Color.white);
+            SetRect(label.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y), new Vector2(560f, 38f));
+            _barLabels[player, stat] = label;
 
-            RawImage track = CreateRawImage(panel, labels[stat] + "Track", new Color(0.18f, 0.20f, 0.26f));
-            SetRect(track.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(305f, y), new Vector2(272f, 24f));
-            track.rectTransform.pivot = new Vector2(0f, 0.5f);
+            RawImage track = CreateRawImage(panel, StatLabels[stat] + "Track", new Color(0.18f, 0.20f, 0.26f));
+            SetRect(track.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, y - 35f), new Vector2(560f, 25f));
 
             RawImage fill = CreateRawImage(track.rectTransform, "Fill", colors[stat]);
             fill.rectTransform.anchorMin = Vector2.zero;
@@ -141,10 +142,6 @@ public class SwordSelectUI : MonoBehaviour
             fill.rectTransform.offsetMin = Vector2.zero;
             fill.rectTransform.offsetMax = Vector2.zero;
             _barFills[player, stat] = fill;
-
-            Text value = CreateText(panel, labels[stat] + "Value", 23, TextAnchor.MiddleRight, Color.white);
-            SetRect(value.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-72f, y), new Vector2(90f, 34f));
-            _barValues[player, stat] = value;
         }
 
         _states[player] = CreateText(panel, "State", 27, TextAnchor.MiddleCenter, PlayerColors[player]);
@@ -208,7 +205,8 @@ public class SwordSelectUI : MonoBehaviour
         {
             float ratio = Mathf.Clamp01(values[stat] / maxima[stat]);
             _barFills[player, stat].rectTransform.anchorMax = new Vector2(ratio, 1f);
-            _barValues[player, stat].text = stat == 2 ? values[stat].ToString("0.0") : Mathf.RoundToInt(values[stat]).ToString();
+            string value = stat == 2 ? values[stat].ToString("0.0") : Mathf.RoundToInt(values[stat]).ToString();
+            _barLabels[player, stat].text = $"{StatLabels[stat]}    {value}";
         }
     }
 
