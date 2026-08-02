@@ -188,6 +188,13 @@ public class DuelManager : MonoBehaviour
                     _textures[captured.id] = tex;
                 }
             });
+            yield return repository.FetchVoice(captured, clip =>
+            {
+                if (clip != null && captured != null && !string.IsNullOrEmpty(captured.id))
+                {
+                    _voices[captured.id] = clip;
+                }
+            });
         }
 
         Debug.Log($"[DuelManager] 剣を{_swords.Count}本読み込んだ");
@@ -261,7 +268,7 @@ public class DuelManager : MonoBehaviour
             return;
         }
 
-        // 選択画面を開くたびSQLiteを読み直す。Web側で直前に追加された剣も見える。
+        // 選択画面を開くたびLocal APIを読み直す。Web側で直前に追加された剣も見える。
         StartCoroutine(LoadThenSelect());
     }
 
@@ -320,7 +327,7 @@ public class DuelManager : MonoBehaviour
             // 錬成をやめて既存に切り替えた場合はここで抜ける
             if (Current != Phase.Forge || ForgingPlayer != playerIndex) yield break;
 
-            // SQLite / Supabase のどちらでも同じフローになるよう、一覧取得APIを使う。
+            // Local APIの一覧を再取得し、QR表示後に増えた人物を検出する。
             List<SwordData> latest = null;
             yield return repository.FetchSwords(list => latest = list);
             if (latest != null)
@@ -467,8 +474,8 @@ public class DuelManager : MonoBehaviour
         player1.SetFacing(1);
         player2.SetFacing(-1);
 
-        player1.Equip(sword1, GetTexture(sword1));
-        player2.Equip(sword2, GetTexture(sword2));
+        player1.Equip(sword1, GetTexture(sword1), GetVoice(sword1));
+        player2.Equip(sword2, GetTexture(sword2), GetVoice(sword2));
 
         // Equip で剣の長さが変わるので、手の支点の取り直しは装備のあとにやる
         player1.ResetForBattle();

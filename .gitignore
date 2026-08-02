@@ -30,6 +30,19 @@ ProfilerCaptures/
 *.opendb
 *.VC.db
 *.pyc
+*.swp
+
+# ---- Python backend generated files ----
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+.pytest_cache/
 
 # ---- ビルド成果物 ----
 *.apk
@@ -69,9 +82,13 @@ images/
 .claude/settings.local.json
 .codex/
 .mcp.json
+/work/
 
 # Local Windows player builds
 /Builds/
+
+# Database backup created before backend integration
+*.local-before-backend
 
 # ---- 注意 ----
 # *.meta は Unity が参照を保つのに必須。絶対に無視しないこと

@@ -378,7 +378,7 @@ public class ForgeUI : MonoBehaviour
 
             _revealName.text = sword != null ? sword.name : "";
             _revealStats.text = sword != null && sword.stats != null
-                ? $"攻撃力 ATTACK  {sword.stats.attack}    素早さ SPEED  {sword.stats.speed}    サイズ SIZE  {sword.stats.reach:0.0}"
+                ? $"攻撃力 ATTACK  {sword.stats.attack}    素早さ SPEED  {sword.stats.speed}    サイズ SIZE  {TposeSwordTemplateSettings.ResolveHeightCm(sword):0} cm"
                 : "";
             _revealPrompt.text = "×  つぎへ";
 

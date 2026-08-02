@@ -1,43 +1,39 @@
 using System;
 
-/// <summary>
-/// サーバー（Supabase）と共有するデータモデル。
-/// フィールド名は JSON のキーと完全に一致させること。勝手に変えるとチーム間の契約が壊れる。
-/// </summary>
+/// <summary>Local APIとUnityで共有する剣データ。</summary>
 [Serializable]
 public class SwordData
 {
     public string id;
     public string name;
     public string image_url;
+    public string audio_url;
     public SwordStats stats;
     public string created_at;
 }
 
 /// <summary>
-/// 戦闘ステータスは attack / speed。現在のモデルでは reach を長さに使用する。
+/// 戦闘ステータスはattack / speed。
+/// height_cmだけからTポーズモデル全長と攻撃範囲を決定する。
 /// </summary>
 [Serializable]
 public class SwordStats
 {
     public int attack;
     public int speed;
-    public float reach = 1f;
+    public float height_cm;
 
     public SwordStats() { }
 
-    public SwordStats(int attack, int speed, float reach)
+    public SwordStats(int attack, int speed, float heightCm)
     {
         this.attack = attack;
         this.speed = speed;
-        this.reach = reach;
+        height_cm = heightCm;
     }
 }
 
-/// <summary>
-/// JsonUtility はトップレベルが配列の JSON をパースできない。
-/// Supabase は [{...}] を返すので、これで包んでからパースする。
-/// </summary>
+/// <summary>JsonUtilityでトップレベル配列を読むためのラッパー。</summary>
 [Serializable]
 public class SwordListWrapper
 {

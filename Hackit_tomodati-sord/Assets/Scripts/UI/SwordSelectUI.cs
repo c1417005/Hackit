@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 /// <summary>
-/// SQLiteから復元した人物画像を、1P/2Pそれぞれ大きく見せる武器選択画面。
+/// Local APIから取得した人物画像を、1P/2Pそれぞれ大きく見せる武器選択画面。
 /// 左右で候補を切り替え、決定したSwordDataとTexture2Dを対戦へ渡す。
 /// </summary>
 public class SwordSelectUI : MonoBehaviour
@@ -188,7 +188,7 @@ public class SwordSelectUI : MonoBehaviour
         _canvas.enabled = phase == DuelManager.Phase.Loading || phase == DuelManager.Phase.Select;
         if (phase == DuelManager.Phase.Loading)
         {
-            _title.text = "SQLiteから剣を読み込み中...";
+            _title.text = "ともだちを読み込み中...";
             _footer.text = "しばらくお待ちください";
             return;
         }
@@ -238,13 +238,13 @@ public class SwordSelectUI : MonoBehaviour
             ? texture.width / (float)texture.height
             : 0.5f;
         _names[player].text = sword.name;
-        float[] values = { sword.stats.attack, sword.stats.speed, sword.stats.reach };
-        float[] maxima = { 70f, 70f, 1.5f };
+        float[] values = { sword.stats.attack, sword.stats.speed, TposeSwordTemplateSettings.ResolveHeightCm(sword) };
+        float[] maxima = { 70f, 70f, TposeSwordTemplateSettings.MaximumSupportedHeightCm };
         for (int stat = 0; stat < 3; stat++)
         {
             float ratio = Mathf.Clamp01(values[stat] / maxima[stat]);
             _targetBarRatios[player, stat] = ratio;
-            string value = stat == 2 ? values[stat].ToString("0.0") : Mathf.RoundToInt(values[stat]).ToString();
+            string value = stat == 2 ? $"{values[stat]:0} cm" : Mathf.RoundToInt(values[stat]).ToString();
             _barLabels[player, stat].text = $"{StatLabels[stat]}    {value}";
         }
     }

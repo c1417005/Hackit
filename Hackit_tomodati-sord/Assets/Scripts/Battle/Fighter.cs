@@ -98,6 +98,8 @@ public class Fighter : MonoBehaviour
     BoxCollider _attackBox;
     GameObject _axeHead;
     TrailRenderer _trail;
+    AudioSource _modelVoiceSource;
+    AudioClip _modelMotionVoice;
 
     bool _inputEnabled = true;
     bool _hitThisAttack;
@@ -168,6 +170,10 @@ public class Fighter : MonoBehaviour
         }
 
         BuildHandRig();
+        _modelVoiceSource = gameObject.AddComponent<AudioSource>();
+        _modelVoiceSource.playOnAwake = false;
+        _modelVoiceSource.spatialBlend = 0.35f;
+        _modelVoiceSource.volume = 0.85f;
         _hp = maxHp;
     }
 
@@ -300,11 +306,12 @@ public class Fighter : MonoBehaviour
         }
     }
 
-    public void Equip(SwordData data, Texture2D texture)
+    public void Equip(SwordData data, Texture2D texture, AudioClip modelMotionVoice = null)
     {
         if (_swordRoot != null) Destroy(_swordRoot);
 
         Sword = data;
+        _modelMotionVoice = modelMotionVoice;
         _metrics = SwordBuilder.GetMetrics(data);
         _swordRoot = SwordBuilder.Build(data, texture, _swordPivot);
 
@@ -322,8 +329,8 @@ public class Fighter : MonoBehaviour
         // 判定は握りから刃先までの**全長**を覆う。
         // 以前は刃の一部（bladeLength * 0.92）しか無く、振り抜いても
         // 判定の先端が x=0.03 までしか出ないため相手に永久に届かなかった。
-        // ここを全長にすることで、reach の長い剣ほど遠くまで届くようになる
-        //（＝ reach がゲーム的に意味を持つ）。
+        // ここを全長にすることで、身長から生成されたモデルの長さと
+        // 実際の攻撃範囲を一致させる。
         float length = _metrics.tipDistance;
         hitboxObject.transform.localPosition = new Vector3(0f, length * 0.5f, 0f);
 
@@ -596,6 +603,7 @@ public class Fighter : MonoBehaviour
         _attacking = true;
         _hitThisAttack = false;
         SetReadyGauge(0f);
+        PlayModelMotionVoice(kind);
 
         float duration = AttackDuration;
         float windupTime = duration * windupRatio;
@@ -648,6 +656,14 @@ public class Fighter : MonoBehaviour
         _currentDamageMultiplier = 1f;
         _nextAttackTime = Time.time + hitCooldown;
         _attackRoutine = null;
+    }
+
+    void PlayModelMotionVoice(AttackKind kind)
+    {
+        if (_modelVoiceSource == null || _modelMotionVoice == null) return;
+        _modelVoiceSource.pitch = kind == AttackKind.Horizontal ? 0.96f : 1.04f;
+        _modelVoiceSource.Stop();
+        _modelVoiceSource.PlayOneShot(_modelMotionVoice);
     }
 
     IEnumerator RotateOverTime(
@@ -875,7 +891,7 @@ public class Fighter : MonoBehaviour
     {
         return Sword != null && Sword.stats != null
             ? Sword.stats
-            : new SwordStats(40, 40, 1f);
+            : new SwordStats(40, 40, TposeSwordTemplateSettings.DefaultHeightCm);
     }
 
     IEnumerator FlashBlade()
