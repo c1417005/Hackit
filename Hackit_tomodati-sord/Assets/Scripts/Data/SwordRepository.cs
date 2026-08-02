@@ -145,10 +145,16 @@ public class SwordRepository : MonoBehaviour
             LocalPersonList response = JsonUtility.FromJson<LocalPersonList>(json);
             if (response?.persons == null) return swords;
 
+            // The API returns newest entries first. Repeated submissions of the same
+            // person create separate SQLite rows, so keep only the newest matching row
+            // in the armory without deleting any source data.
+            var seenPeople = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int count = 0;
             foreach (LocalPerson person in response.persons)
             {
                 if (person == null || string.IsNullOrEmpty(person.after_url)) continue;
+                if (!seenPeople.Add(PersonIdentityKey(person))) continue;
+
                 string id = person.id.ToString();
                 string voice = !string.IsNullOrEmpty(person.audio_url)
                     ? person.audio_url
@@ -171,6 +177,13 @@ public class SwordRepository : MonoBehaviour
             Debug.LogWarning("[LocalAPI] /api/personsの解析失敗: " + e.Message);
         }
         return swords;
+    }
+
+    static string PersonIdentityKey(LocalPerson person)
+    {
+        string normalizedName = (person.name ?? string.Empty).Trim();
+        int heightTenths = Mathf.RoundToInt(person.height * 10f);
+        return $"{normalizedName}\u001f{heightTenths}\u001f{person.attack}\u001f{person.speed}";
     }
 
     string AssetUrl(string pathOrUrl)
