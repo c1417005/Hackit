@@ -201,6 +201,39 @@ public class SwordRepository : MonoBehaviour
 
     /// <summary>id -> 画像PNGのバイト列。FetchSwordsFromSqlite で拾ったぶん。</summary>
     readonly Dictionary<string, byte[]> _blobCache = new Dictionary<string, byte[]>();
+    // audio_url は現行の必須契約外だが、Web側が列を追加した場合に利用する任意メタデータ。
+    readonly Dictionary<string, string> _audioUrlCache = new Dictionary<string, string>();
+
+    public string GetAudioUrl(string swordId)
+    {
+        return !string.IsNullOrEmpty(swordId) && _audioUrlCache.TryGetValue(swordId, out string url)
+            ? url
+            : string.Empty;
+    }
+
+    /// <summary>登録された音声URLがあれば取得する。音声なし・失敗はnullで続行する。</summary>
+    public IEnumerator FetchVoice(SwordData data, Action<AudioClip> onDone)
+    {
+        string url = data != null ? GetAudioUrl(data.id) : string.Empty;
+        if (string.IsNullOrEmpty(url))
+        {
+            onDone?.Invoke(null);
+            yield break;
+        }
+
+        using (UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.UNKNOWN))
+        {
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogWarning($"[SwordRepository] 音声の取得に失敗: {url} / {request.error}");
+                onDone?.Invoke(null);
+                yield break;
+            }
+
+            onDone?.Invoke(DownloadHandlerAudioClip.GetContent(request));
+        }
+    }
 
     /// <summary>DBに入っていた画像をテクスチャにする。無ければ null。</summary>
     public Texture2D TakeBlobTexture(string swordId)
@@ -291,6 +324,9 @@ public class SwordRepository : MonoBehaviour
                     {
                         _blobCache[sword.id] = png;
                     }
+
+                    string audioUrl = row.GetString("audio_url");
+                    if (!string.IsNullOrEmpty(audioUrl)) _audioUrlCache[sword.id] = audioUrl;
 
                     swords.Add(sword);
                 }

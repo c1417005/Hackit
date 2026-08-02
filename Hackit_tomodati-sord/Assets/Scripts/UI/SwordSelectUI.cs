@@ -23,8 +23,8 @@ public class SwordSelectUI : MonoBehaviour
     readonly AspectRatioFitter[] _portraitFitters = new AspectRatioFitter[2];
     readonly Text[] _names = new Text[2];
     readonly Text[] _states = new Text[2];
-    readonly RawImage[,] _barFills = new RawImage[2, 4];
-    readonly Text[,] _barValues = new Text[2, 4];
+    readonly RawImage[,] _barFills = new RawImage[2, 3];
+    readonly Text[,] _barValues = new Text[2, 3];
     readonly int[] _cursor = new int[2];
     readonly bool[] _stickLatched = new bool[2];
     static Font _font;
@@ -98,8 +98,11 @@ public class SwordSelectUI : MonoBehaviour
         playerLabel.rectTransform.pivot = new Vector2(0.5f, 1f);
         playerLabel.text = $"PLAYER {player + 1}";
 
+        _names[player] = CreateText(panel, "SwordName", 35, TextAnchor.MiddleCenter, Color.white);
+        SetRect(_names[player].rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -58f), new Vector2(0f, 48f));
+
         RawImage portraitBg = CreateRawImage(panel, "PortraitBackground", new Color(0.075f, 0.10f, 0.17f));
-        SetRect(portraitBg.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -62f), new Vector2(650f, 480f));
+        SetRect(portraitBg.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -112f), new Vector2(650f, 430f));
         portraitBg.rectTransform.pivot = new Vector2(0.5f, 1f);
 
         RawImage portrait = CreateRawImage(portraitBg.rectTransform, "PersonImage", Color.white);
@@ -110,27 +113,25 @@ public class SwordSelectUI : MonoBehaviour
         _portraitFitters[player] = fitter;
 
         Text arrows = CreateText(panel, "Arrows", 62, TextAnchor.MiddleCenter, Color.white);
-        SetRect(arrows.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -265f), new Vector2(0f, 70f));
+        SetRect(arrows.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -310f), new Vector2(0f, 70f));
         arrows.text = "〈                                      〉";
 
-        _names[player] = CreateText(panel, "SwordName", 35, TextAnchor.MiddleCenter, Color.white);
-        SetRect(_names[player].rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -552f), new Vector2(0f, 48f));
-
-        string[] labels = { "ATK", "DEF", "SPD", "REACH" };
+        string[] labels = { "攻撃力  ATTACK", "素早さ  SPEED", "サイズ  SIZE" };
         Color[] colors =
         {
-            new Color(1f, 0.28f, 0.20f), new Color(0.25f, 0.62f, 1f),
-            new Color(0.22f, 0.95f, 0.48f), new Color(1f, 0.78f, 0.20f),
+            new Color(1f, 0.28f, 0.20f),
+            new Color(0.22f, 0.95f, 0.48f),
+            new Color(1f, 0.78f, 0.20f),
         };
 
-        for (int stat = 0; stat < 4; stat++)
+        for (int stat = 0; stat < 3; stat++)
         {
-            float y = -620f - stat * 50f;
+            float y = -635f - stat * 62f;
             Text label = CreateText(panel, labels[stat], 24, TextAnchor.MiddleLeft, Color.white);
-            SetRect(label.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(95f, y), new Vector2(90f, 34f));
+            SetRect(label.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(100f, y), new Vector2(190f, 34f));
 
             RawImage track = CreateRawImage(panel, labels[stat] + "Track", new Color(0.18f, 0.20f, 0.26f));
-            SetRect(track.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(192f, y), new Vector2(385f, 22f));
+            SetRect(track.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(305f, y), new Vector2(272f, 24f));
             track.rectTransform.pivot = new Vector2(0f, 0.5f);
 
             RawImage fill = CreateRawImage(track.rectTransform, "Fill", colors[stat]);
@@ -201,13 +202,13 @@ public class SwordSelectUI : MonoBehaviour
             ? texture.width / (float)texture.height
             : 0.5f;
         _names[player].text = sword.name;
-        float[] values = { sword.stats.attack, sword.stats.defense, sword.stats.speed, sword.stats.reach };
-        float[] maxima = { 70f, 70f, 70f, 1.5f };
-        for (int stat = 0; stat < 4; stat++)
+        float[] values = { sword.stats.attack, sword.stats.speed, sword.stats.reach };
+        float[] maxima = { 70f, 70f, 1.5f };
+        for (int stat = 0; stat < 3; stat++)
         {
             float ratio = Mathf.Clamp01(values[stat] / maxima[stat]);
             _barFills[player, stat].rectTransform.anchorMax = new Vector2(ratio, 1f);
-            _barValues[player, stat].text = stat == 3 ? values[stat].ToString("0.0") : Mathf.RoundToInt(values[stat]).ToString();
+            _barValues[player, stat].text = stat == 2 ? values[stat].ToString("0.0") : Mathf.RoundToInt(values[stat]).ToString();
         }
     }
 

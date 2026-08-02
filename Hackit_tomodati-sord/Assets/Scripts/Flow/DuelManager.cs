@@ -117,10 +117,13 @@ public class DuelManager : MonoBehaviour
 
     readonly List<SwordData> _swords = new List<SwordData>();
     readonly Dictionary<string, Texture2D> _textures = new Dictionary<string, Texture2D>();
+    readonly Dictionary<string, AudioClip> _voices = new Dictionary<string, AudioClip>();
     readonly SwordData[] _selected = new SwordData[2];
     readonly PlayerMode[] _modes = new PlayerMode[2];
 
     bool _resultInputReady;
+    bool _catalogLoaded;
+    bool _catalogLoading;
 
     void Start()
     {
@@ -171,6 +174,7 @@ public class DuelManager : MonoBehaviour
         {
             _swords.Clear();
             if (list != null) _swords.AddRange(list);
+            _catalogLoaded = true;
         });
 
         // 画像は選択画面に入る前に全部そろえておく。対戦開始で待たされないように。
@@ -234,6 +238,14 @@ public class DuelManager : MonoBehaviour
     /// </summary>
     void Advance()
     {
+        // 新規作成では「QRを表示した時点で存在していたID」が必要。
+        // 先に基準一覧を取得しないと、既存の最新データを新作と誤認してしまう。
+        if (!_catalogLoaded)
+        {
+            if (!_catalogLoading) StartCoroutine(LoadCatalogThenAdvance());
+            return;
+        }
+
         for (int i = 0; i < 2; i++)
         {
             if (_modes[i] == PlayerMode.Create && _selected[i] == null)
@@ -251,6 +263,23 @@ public class DuelManager : MonoBehaviour
 
         // 選択画面を開くたびSQLiteを読み直す。Web側で直前に追加された剣も見える。
         StartCoroutine(LoadThenSelect());
+    }
+
+    IEnumerator LoadCatalogThenAdvance()
+    {
+        _catalogLoading = true;
+        SetPhase(Phase.Loading);
+        SetFightersActive(false);
+
+        yield return repository.FetchSwords(list =>
+        {
+            _swords.Clear();
+            if (list != null) _swords.AddRange(list);
+            _catalogLoaded = true;
+        });
+
+        _catalogLoading = false;
+        Advance();
     }
 
     /// <summary>既存の剣を選ぶ画面。まだ決まっていない人だけが操作する。</summary>
@@ -291,7 +320,20 @@ public class DuelManager : MonoBehaviour
             // 錬成をやめて既存に切り替えた場合はここで抜ける
             if (Current != Phase.Forge || ForgingPlayer != playerIndex) yield break;
 
-            found = repository.FindNewSword(known);
+            // SQLite / Supabase のどちらでも同じフローになるよう、一覧取得APIを使う。
+            List<SwordData> latest = null;
+            yield return repository.FetchSwords(list => latest = list);
+            if (latest != null)
+            {
+                foreach (SwordData sword in latest)
+                {
+                    if (sword != null && !string.IsNullOrEmpty(sword.id) && !known.Contains(sword.id))
+                    {
+                        found = sword;
+                        break;
+                    }
+                }
+            }
         }
 
         // 見つかった。ここからが「錬成中」
@@ -304,6 +346,11 @@ public class DuelManager : MonoBehaviour
         yield return repository.FetchTexture(found, tex =>
         {
             if (!string.IsNullOrEmpty(found.id)) _textures[found.id] = tex;
+        });
+
+        yield return repository.FetchVoice(found, clip =>
+        {
+            if (clip != null && !string.IsNullOrEmpty(found.id)) _voices[found.id] = clip;
         });
 
         // 一瞬で終わると演出にならないので最低限は見せる
@@ -360,6 +407,12 @@ public class DuelManager : MonoBehaviour
     {
         if (sword == null || string.IsNullOrEmpty(sword.id)) return null;
         return _textures.TryGetValue(sword.id, out Texture2D tex) ? tex : null;
+    }
+
+    public AudioClip GetVoice(SwordData sword)
+    {
+        if (sword == null || string.IsNullOrEmpty(sword.id)) return null;
+        return _voices.TryGetValue(sword.id, out AudioClip clip) ? clip : null;
     }
 
     public SwordData GetSelected(int playerIndex)

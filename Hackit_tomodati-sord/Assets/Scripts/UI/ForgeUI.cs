@@ -56,6 +56,9 @@ public class ForgeUI : MonoBehaviour
     Text _revealPrompt;
     WavyText _revealHeadline;
     Text _forgeOwner;
+    RawImage _revealFlash;
+    AudioSource _voiceSource;
+    float _drawStarted = -1f;
 
     public static ForgeUI Create(DuelManager duel)
     {
@@ -68,6 +71,8 @@ public class ForgeUI : MonoBehaviour
     void Init(DuelManager duel)
     {
         _duel = duel;
+        _voiceSource = gameObject.AddComponent<AudioSource>();
+        _voiceSource.playOnAwake = false;
 
         _canvas = GetComponent<Canvas>();
         _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -224,7 +229,7 @@ public class ForgeUI : MonoBehaviour
 
         _qrCaption = CreateText(_qrPanel, "Caption", 32, TextAnchor.UpperCenter, new Color(0.9f, 0.94f, 1f));
         _qrCaption.rectTransform.anchoredPosition = new Vector2(0f, -270f);
-        _qrCaption.text = "スマホで読み取って、全身写真をアップロード\n\nアップロードされると自動で錬成がはじまる";
+        _qrCaption.text = "スマホで読み取って、名前・身長・全身写真・音声を登録\n\n送信が完了すると自動で錬成がはじまる";
 
         // --- 錬成中 ---
         _forgingPanel = CreateSubPanel(_forgeRoot, "ForgingPanel");
@@ -249,6 +254,10 @@ public class ForgeUI : MonoBehaviour
         // --- 抜刀・ステータス ---
         _revealPanel = CreateSubPanel(_forgeRoot, "RevealPanel");
 
+        _revealFlash = CreateRawImage(_revealPanel, "RevealFlash", new Color(1f, 0.76f, 0.20f, 0f));
+        _revealFlash.rectTransform.anchorMin = _revealFlash.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        _revealFlash.rectTransform.sizeDelta = new Vector2(900f, 900f);
+
         var revealHeadGo = new GameObject("RevealHeadline", typeof(RectTransform)).GetComponent<RectTransform>();
         revealHeadGo.SetParent(_revealPanel, false);
         revealHeadGo.anchorMin = revealHeadGo.anchorMax = new Vector2(0.5f, 0.5f);
@@ -264,7 +273,7 @@ public class ForgeUI : MonoBehaviour
         _revealSword.rectTransform.anchoredPosition = new Vector2(0f, 10f);
 
         _revealName = CreateText(_revealPanel, "Name", 44, TextAnchor.MiddleCenter, Color.white);
-        _revealName.rectTransform.anchoredPosition = new Vector2(0f, -260f);
+        _revealName.rectTransform.anchoredPosition = new Vector2(0f, 300f);
 
         _revealStats = CreateText(_revealPanel, "Stats", 30, TextAnchor.MiddleCenter, new Color(0.72f, 0.88f, 1f));
         _revealStats.rectTransform.anchoredPosition = new Vector2(0f, -330f);
@@ -334,11 +343,13 @@ public class ForgeUI : MonoBehaviour
             _revealName.text = "";
             _revealStats.text = "";
             _revealPrompt.text = "×  この剣を抜く";
+            _drawStarted = -1f;
+            SetRevealFlash(0f);
         }
         else if (step == DuelManager.ForgeStep.Drawn)
         {
             SwordData sword = _duel.ForgedSword;
-            _revealHeadline.SetText(sword != null ? sword.name : "あたらしい剣");
+            _revealHeadline.SetText("新しい友達の出現！");
 
             Texture2D texture = _duel.GetTexture(sword);
             _revealSword.gameObject.SetActive(true);
@@ -353,9 +364,21 @@ public class ForgeUI : MonoBehaviour
 
             _revealName.text = sword != null ? sword.name : "";
             _revealStats.text = sword != null && sword.stats != null
-                ? $"ATK {sword.stats.attack}    DEF {sword.stats.defense}    SPD {sword.stats.speed}    REACH {sword.stats.reach:0.0}"
+                ? $"攻撃力 ATTACK  {sword.stats.attack}    素早さ SPEED  {sword.stats.speed}    サイズ SIZE  {sword.stats.reach:0.0}"
                 : "";
             _revealPrompt.text = "×  つぎへ";
+
+            _drawStarted = Time.unscaledTime;
+            _revealSword.rectTransform.anchoredPosition = new Vector2(0f, -520f);
+            _revealSword.rectTransform.localScale = new Vector3(0.45f, 0.45f, 1f);
+            _revealSword.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -10f);
+
+            AudioClip voice = _duel.GetVoice(sword);
+            if (voice != null)
+            {
+                _voiceSource.clip = voice;
+                _voiceSource.Play();
+            }
         }
         else if (step == DuelManager.ForgeStep.Confirm)
         {
@@ -402,7 +425,40 @@ public class ForgeUI : MonoBehaviour
         {
             UpdateForgeInput();
             UpdateForgingAnimation();
+            UpdateRevealAnimation();
         }
+    }
+
+    void UpdateRevealAnimation()
+    {
+        if (_drawStarted < 0f || _duel.CurrentForgeStep != DuelManager.ForgeStep.Drawn) return;
+
+        float elapsed = Time.unscaledTime - _drawStarted;
+        float pull = Mathf.Clamp01(elapsed / 1.15f);
+        float eased = 1f - Mathf.Pow(1f - pull, 3f);
+        float overshoot = Mathf.Sin(pull * Mathf.PI) * 42f;
+
+        _revealSword.rectTransform.anchoredPosition = new Vector2(0f, Mathf.Lerp(-520f, 10f, eased) + overshoot);
+        float scale = Mathf.Lerp(0.45f, 1f, eased);
+        _revealSword.rectTransform.localScale = new Vector3(scale, scale, 1f);
+        _revealSword.rectTransform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-10f, 0f, eased));
+
+        float flash = elapsed < 0.75f
+            ? Mathf.Sin(Mathf.Clamp01(elapsed / 0.75f) * Mathf.PI)
+            : Mathf.Clamp01(1.6f - elapsed);
+        SetRevealFlash(flash * 0.55f);
+
+        if (pull >= 1f && elapsed > 1.6f) SetRevealFlash(0f);
+    }
+
+    void SetRevealFlash(float alpha)
+    {
+        if (_revealFlash == null) return;
+        Color color = _revealFlash.color;
+        color.a = alpha;
+        _revealFlash.color = color;
+        float pulse = 0.85f + alpha * 0.35f;
+        _revealFlash.rectTransform.localScale = new Vector3(pulse, pulse, 1f);
     }
 
     void UpdateForgingAnimation()
