@@ -55,12 +55,19 @@ public class ForgeUI : MonoBehaviour
     Text _revealStats;
     Text _revealPrompt;
     WavyText _revealHeadline;
+    RectTransform _drawCommandRoot;
+    WavyText _drawCommandText;
+    Text _drawCommandEchoA;
+    Text _drawCommandEchoB;
+    RawImage _drawCommandGlow;
+    readonly RawImage[] _drawCommandSlashes = new RawImage[4];
     Text _forgeOwner;
     Text _forgeProgress;
     RawImage _revealFlash;
     AudioSource _voiceSource;
     AudioSource _sfxSource;
     float _drawStarted = -1f;
+    float _drawCommandStarted = -1f;
 
     public static ForgeUI Create(DuelManager duel)
     {
@@ -266,6 +273,8 @@ public class ForgeUI : MonoBehaviour
         _revealFlash.rectTransform.anchorMin = _revealFlash.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
         _revealFlash.rectTransform.sizeDelta = new Vector2(1100f, 1100f);
 
+        BuildDrawCommand();
+
         var revealHeadGo = new GameObject("RevealHeadline", typeof(RectTransform)).GetComponent<RectTransform>();
         revealHeadGo.SetParent(_revealPanel, false);
         revealHeadGo.anchorMin = revealHeadGo.anchorMax = new Vector2(0.5f, 0.5f);
@@ -332,6 +341,15 @@ public class ForgeUI : MonoBehaviour
             step == DuelManager.ForgeStep.Drawn ||
             step == DuelManager.ForgeStep.Confirm);
 
+        bool waitingForDraw = step == DuelManager.ForgeStep.Ready;
+        _drawCommandRoot.gameObject.SetActive(waitingForDraw);
+        if (!waitingForDraw)
+        {
+            _drawCommandStarted = -1f;
+            _revealPrompt.rectTransform.localScale = Vector3.one;
+            _revealPrompt.rectTransform.localRotation = Quaternion.identity;
+        }
+
         if (step == DuelManager.ForgeStep.WaitingUpload)
         {
             _forgeProgress.text = "1 / 3　QRで友達を登録";
@@ -350,12 +368,14 @@ public class ForgeUI : MonoBehaviour
         {
             _forgeProgress.text = "3 / 3　剣を引き抜け！";
             // まだ剣は見せない。抜くまでが溜め
-            _revealHeadline.SetText("剣ができた");
+            _revealHeadline.SetText("錬 成 完 了");
+            _drawCommandText.SetText("剣 を 抜 け ！");
             _revealSword.gameObject.SetActive(false);
             _revealName.text = "";
             _revealStats.text = "";
-            _revealPrompt.text = "×  この剣を抜く";
+            _revealPrompt.text = "× ボタンで引き抜く";
             _drawStarted = -1f;
+            _drawCommandStarted = Time.unscaledTime;
             SetRevealFlash(0f);
         }
         else if (step == DuelManager.ForgeStep.Drawn)
@@ -447,8 +467,131 @@ public class ForgeUI : MonoBehaviour
         {
             UpdateForgeInput();
             UpdateForgingAnimation();
+            UpdateDrawCommandAnimation();
             UpdateRevealAnimation();
         }
+    }
+
+    void BuildDrawCommand()
+    {
+        var rootObject = new GameObject("DrawCommand", typeof(RectTransform));
+        _drawCommandRoot = rootObject.GetComponent<RectTransform>();
+        _drawCommandRoot.SetParent(_revealPanel, false);
+        _drawCommandRoot.anchorMin = _drawCommandRoot.anchorMax = new Vector2(0.5f, 0.5f);
+        _drawCommandRoot.sizeDelta = new Vector2(1500f, 390f);
+        _drawCommandRoot.anchoredPosition = new Vector2(0f, 20f);
+
+        _drawCommandGlow = CreateRawImage(_drawCommandRoot, "CommandGlow", new Color(1f, 0.46f, 0.08f, 0.20f));
+        _drawCommandGlow.rectTransform.anchorMin = _drawCommandGlow.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        _drawCommandGlow.rectTransform.sizeDelta = new Vector2(1050f, 185f);
+        _drawCommandGlow.rectTransform.anchoredPosition = new Vector2(0f, 30f);
+
+        for (int i = 0; i < _drawCommandSlashes.Length; i++)
+        {
+            Color color = i % 2 == 0
+                ? new Color(1f, 0.76f, 0.16f, 0.72f)
+                : new Color(1f, 1f, 1f, 0.56f);
+            RawImage slash = CreateRawImage(_drawCommandRoot, "CommandSlash" + i, color);
+            RectTransform rect = slash.rectTransform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(1260f - i * 95f, i % 2 == 0 ? 13f : 7f);
+            rect.anchoredPosition = new Vector2(0f, 30f + (i - 1.5f) * 28f);
+            rect.localEulerAngles = new Vector3(0f, 0f, i % 2 == 0 ? 7f + i * 2f : -9f - i * 2f);
+            _drawCommandSlashes[i] = slash;
+        }
+
+        _drawCommandEchoB = CreateText(_drawCommandRoot, "CommandEchoB", 112, TextAnchor.MiddleCenter, new Color(1f, 0.18f, 0.05f, 0.10f));
+        _drawCommandEchoB.rectTransform.anchoredPosition = new Vector2(0f, 34f);
+        _drawCommandEchoB.text = "剣を抜け！";
+
+        _drawCommandEchoA = CreateText(_drawCommandRoot, "CommandEchoA", 112, TextAnchor.MiddleCenter, new Color(1f, 0.74f, 0.12f, 0.16f));
+        _drawCommandEchoA.rectTransform.anchoredPosition = new Vector2(0f, 34f);
+        _drawCommandEchoA.text = "剣を抜け！";
+
+        var textRoot = new GameObject("CommandText", typeof(RectTransform)).GetComponent<RectTransform>();
+        textRoot.SetParent(_drawCommandRoot, false);
+        textRoot.anchorMin = textRoot.anchorMax = new Vector2(0.5f, 0.5f);
+        textRoot.anchoredPosition = new Vector2(0f, 34f);
+        _drawCommandText = textRoot.gameObject.AddComponent<WavyText>();
+        _drawCommandText.fontSize = 104;
+        _drawCommandText.waveHeight = 18f;
+        _drawCommandText.waveSpeed = 7.8f;
+        _drawCommandText.wavePhase = 0.62f;
+        _drawCommandText.revealInterval = 0.045f;
+        _drawCommandText.colorA = Color.white;
+        _drawCommandText.colorB = new Color(1f, 0.52f, 0.08f);
+
+        Text button = CreateText(_drawCommandRoot, "DrawButton", 28, TextAnchor.MiddleCenter, new Color(1f, 0.92f, 0.62f));
+        button.rectTransform.anchoredPosition = new Vector2(0f, -116f);
+        button.text = "PRESS  ×  BUTTON";
+
+        _drawCommandRoot.gameObject.SetActive(false);
+    }
+
+    void UpdateDrawCommandAnimation()
+    {
+        if (_drawCommandStarted < 0f ||
+            _duel.CurrentForgeStep != DuelManager.ForgeStep.Ready ||
+            !_drawCommandRoot.gameObject.activeSelf)
+        {
+            return;
+        }
+
+        float elapsed = Time.unscaledTime - _drawCommandStarted;
+        float introScale;
+        if (elapsed < 0.18f)
+        {
+            introScale = Mathf.Lerp(2.35f, 0.82f, Mathf.SmoothStep(0f, 1f, elapsed / 0.18f));
+        }
+        else if (elapsed < 0.36f)
+        {
+            introScale = Mathf.Lerp(0.82f, 1.16f, Mathf.SmoothStep(0f, 1f, (elapsed - 0.18f) / 0.18f));
+        }
+        else if (elapsed < 0.54f)
+        {
+            introScale = Mathf.Lerp(1.16f, 1f, Mathf.SmoothStep(0f, 1f, (elapsed - 0.36f) / 0.18f));
+        }
+        else
+        {
+            introScale = 1f + Mathf.Sin(elapsed * 4.8f) * 0.055f;
+        }
+
+        float entryShake = Mathf.Exp(-elapsed * 3.6f) * Mathf.Sin(elapsed * 58f) * 7f;
+        float liveTilt = Mathf.Sin(elapsed * 2.5f) * 1.35f;
+        _drawCommandRoot.localScale = Vector3.one * introScale;
+        _drawCommandRoot.localRotation = Quaternion.Euler(0f, 0f, entryShake + liveTilt);
+        _drawCommandRoot.anchoredPosition = new Vector2(0f, 20f + Mathf.Sin(elapsed * 3.4f) * 8f);
+
+        float beat = (Mathf.Sin(elapsed * 5.2f) + 1f) * 0.5f;
+        _drawCommandGlow.color = new Color(1f, 0.40f, 0.06f, Mathf.Lerp(0.10f, 0.31f, beat));
+        _drawCommandGlow.rectTransform.localScale = new Vector3(
+            Mathf.Lerp(0.92f, 1.16f, beat),
+            Mathf.Lerp(0.86f, 1.08f, beat),
+            1f);
+
+        for (int i = 0; i < _drawCommandSlashes.Length; i++)
+        {
+            float phase = (Mathf.Sin(elapsed * (5.8f + i * 0.35f) + i * 1.4f) + 1f) * 0.5f;
+            _drawCommandSlashes[i].rectTransform.localScale = new Vector3(Mathf.Lerp(0.55f, 1.12f, phase), 1f, 1f);
+            Color color = _drawCommandSlashes[i].color;
+            color.a = (i % 2 == 0 ? 0.76f : 0.58f) * Mathf.Lerp(0.45f, 1f, phase);
+            _drawCommandSlashes[i].color = color;
+        }
+
+        float echo = Mathf.Repeat(elapsed * 0.78f, 1f);
+        _drawCommandEchoA.rectTransform.localScale = Vector3.one * Mathf.Lerp(1f, 1.22f, echo);
+        _drawCommandEchoB.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.05f, 1.38f, echo);
+        _drawCommandEchoA.color = new Color(1f, 0.72f, 0.10f, (1f - echo) * 0.22f);
+        _drawCommandEchoB.color = new Color(1f, 0.16f, 0.04f, (1f - echo) * 0.14f);
+
+        _drawCommandText.colorA = Color.Lerp(Color.white, new Color(1f, 0.90f, 0.38f), beat);
+        _drawCommandText.colorB = Color.Lerp(new Color(1f, 0.34f, 0.04f), new Color(1f, 0.68f, 0.08f), beat);
+
+        float promptPulse = 1f + Mathf.Sin(elapsed * 5.2f) * 0.08f;
+        _revealPrompt.rectTransform.localScale = Vector3.one * promptPulse;
+        _revealPrompt.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -liveTilt * 0.45f);
+        _revealPrompt.color = Color.Lerp(new Color(1f, 0.70f, 0.18f), Color.white, beat * 0.55f);
     }
 
     void UpdateRevealAnimation()

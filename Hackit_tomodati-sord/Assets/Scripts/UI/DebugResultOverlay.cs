@@ -31,22 +31,6 @@ public class DebugResultOverlay : MonoBehaviour
             return;
         }
 
-        if (_duel.Current != DuelManager.Phase.Result || _duel.Winner == null) return;
-
-        var style = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 48,
-            alignment = TextAnchor.MiddleCenter,
-        };
-        string name = _duel.Winner.Sword != null ? _duel.Winner.Sword.name : null;
-        if (string.IsNullOrEmpty(name)) name = _duel.Winner.playerIndex == 0 ? "1P" : "2P";
-        string label = name + " の勝ち！";
-        GUI.Label(new Rect(0, Screen.height * 0.32f, Screen.width, 80), label, style);
-
-        if (_duel.CanLeaveResult)
-        {
-            var sub = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter };
-            GUI.Label(new Rect(0, Screen.height * 0.32f + 80, Screen.width, 40), "OPTIONS / Esc / 戻るボタンで最初に戻る", sub);
-        }
+        // Result表示は専用のVictoryScreenが担当する。
     }
 }

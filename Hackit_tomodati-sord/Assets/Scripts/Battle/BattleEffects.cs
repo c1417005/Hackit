@@ -105,6 +105,15 @@ public sealed class BattleEffects : MonoBehaviour
         BattleCamera.Shake(0.28f, 0.42f);
     }
 
+    /// <summary>
+    /// 決着した瞬間に、対戦画面上で一度だけ確殺演出を再生する。
+    /// 呼び出し側はこのIEnumeratorを待ってから勝利画面を表示する。
+    /// </summary>
+    public static IEnumerator PlayFinishingBlow(Fighter winner, Fighter loser)
+    {
+        yield return Instance.FinishingBlowRoutine(winner, loser);
+    }
+
     /// <summary>画面を戻るとき、カウントダウンやK.O.表示を次画面へ残さない。</summary>
     public static void ClearTransientUi()
     {
@@ -267,6 +276,130 @@ public sealed class BattleEffects : MonoBehaviour
         text.text = WinnerLabel(winner);
         yield return new WaitForSecondsRealtime(0.8f);
         Destroy(text.gameObject);
+    }
+
+    IEnumerator FinishingBlowRoutine(Fighter winner, Fighter loser)
+    {
+        Color accent = winner != null && winner.playerIndex == 1
+            ? new Color(1f, 0.24f, 0.10f)
+            : new Color(0.12f, 0.68f, 1f);
+
+        Vector2 focus = Vector2.zero;
+        Camera camera = Camera.main;
+        if (camera != null && loser != null)
+        {
+            Vector3 worldFocus = Vector3.Lerp(loser.transform.position, loser.TipPosition, 0.42f);
+            Vector3 screen = camera.WorldToScreenPoint(worldFocus);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRect, screen, null, out focus);
+        }
+
+        var root = new GameObject("FinishingBlow", typeof(RectTransform));
+        root.transform.SetParent(_canvas.transform, false);
+        RectTransform rootRect = root.GetComponent<RectTransform>();
+        Stretch(rootRect);
+
+        RawImage darkness = CreatePanel(root.transform, "Darkness", new Color(0.005f, 0.008f, 0.018f, 0f));
+        Stretch(darkness.rectTransform);
+
+        RawImage colorWash = CreatePanel(root.transform, "ColorWash", new Color(accent.r, accent.g, accent.b, 0f));
+        Stretch(colorWash.rectTransform);
+
+        const int rayCount = 34;
+        var rays = new RawImage[rayCount];
+        for (int i = 0; i < rayCount; i++)
+        {
+            float angle = i / (float)rayCount * 360f + UnityEngine.Random.Range(-3.5f, 3.5f);
+            float length = UnityEngine.Random.Range(560f, 1160f);
+            float width = UnityEngine.Random.Range(4f, 18f);
+            Color rayColor = i % 4 == 0 ? Color.white : Color.Lerp(accent, new Color(1f, 0.78f, 0.20f), 0.32f);
+            rayColor.a = 0f;
+
+            RawImage ray = CreatePanel(root.transform, "BurstRay", rayColor);
+            RectTransform rect = ray.rectTransform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0f, 0.5f);
+            rect.anchoredPosition = focus;
+            rect.sizeDelta = new Vector2(length, width);
+            rect.localEulerAngles = new Vector3(0f, 0f, angle);
+            rect.localScale = new Vector3(0.04f, 1f, 1f);
+            rays[i] = ray;
+        }
+
+        RawImage slashA = CreatePanel(root.transform, "FinishSlashA", accent);
+        ConfigureSlash(slashA.rectTransform, focus, 18f);
+        RawImage slashB = CreatePanel(root.transform, "FinishSlashB", Color.white);
+        ConfigureSlash(slashB.rectTransform, focus, -14f);
+
+        RawImage flash = CreatePanel(root.transform, "FinishFlash", Color.white);
+        Stretch(flash.rectTransform);
+
+        Text finish = CreateText("FinishLabel", 170, TextAnchor.MiddleCenter, Color.white);
+        finish.transform.SetParent(root.transform, false);
+        finish.text = "FINISH!";
+        Stretch(finish.rectTransform);
+
+        _audio.PlayOneShot(_hitSound, 1f);
+        BattleCamera.Shake(0.52f, 0.76f);
+
+        float elapsed = 0f;
+        const float duration = 0.88f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float reveal = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.20f));
+            float fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - 0.64f) / 0.30f));
+
+            darkness.color = new Color(0.005f, 0.008f, 0.018f, Mathf.Lerp(0.18f, 0.88f, reveal));
+            colorWash.color = new Color(accent.r, accent.g, accent.b, 0.24f * reveal * fade);
+            flash.color = new Color(1f, 1f, 1f, t < 0.13f ? 1f - t / 0.13f : 0f);
+
+            for (int i = 0; i < rays.Length; i++)
+            {
+                RectTransform rect = rays[i].rectTransform;
+                float stagger = Mathf.Clamp01(reveal * 1.18f - (i % 5) * 0.035f);
+                rect.localScale = new Vector3(Mathf.Lerp(0.04f, 1.05f, stagger), 1f, 1f);
+                Color color = rays[i].color;
+                color.a = (i % 4 == 0 ? 0.95f : 0.74f) * reveal * fade;
+                rays[i].color = color;
+            }
+
+            float slashScale = Mathf.Lerp(0.05f, 1f, reveal);
+            slashA.rectTransform.localScale = new Vector3(slashScale, Mathf.Lerp(2.8f, 1f, reveal), 1f);
+            slashB.rectTransform.localScale = new Vector3(slashScale, Mathf.Lerp(2.2f, 1f, reveal), 1f);
+            slashA.color = new Color(accent.r, accent.g, accent.b, 0.92f * fade);
+            slashB.color = new Color(1f, 1f, 1f, 0.82f * fade);
+
+            float punch = t < 0.16f
+                ? Mathf.Lerp(2.2f, 0.94f, t / 0.16f)
+                : Mathf.Lerp(0.94f, 1.02f, Mathf.Clamp01((t - 0.16f) / 0.20f));
+            finish.rectTransform.localScale = Vector3.one * punch;
+            finish.color = new Color(1f, 1f, 1f, reveal * fade);
+            yield return null;
+        }
+
+        darkness.color = new Color(0.005f, 0.008f, 0.018f, 1f);
+        yield return new WaitForSecondsRealtime(0.10f);
+        Destroy(root);
+    }
+
+    static RawImage CreatePanel(Transform parent, string name, Color color)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(RawImage));
+        go.transform.SetParent(parent, false);
+        RawImage image = go.GetComponent<RawImage>();
+        image.color = color;
+        image.raycastTarget = false;
+        return image;
+    }
+
+    static void ConfigureSlash(RectTransform rect, Vector2 focus, float angle)
+    {
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = focus;
+        rect.sizeDelta = new Vector2(2200f, 24f);
+        rect.localEulerAngles = new Vector3(0f, 0f, angle);
     }
 
     Text CreateText(string name, int fontSize, TextAnchor alignment, Color color)
