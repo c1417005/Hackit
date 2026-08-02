@@ -353,7 +353,7 @@ public class ForgeUI : MonoBehaviour
 
             _revealName.text = sword != null ? sword.name : "";
             _revealStats.text = sword != null && sword.stats != null
-                ? $"ATK {sword.stats.attack}    DEF {sword.stats.defense}    SPD {sword.stats.speed}    REACH {sword.stats.reach:0.0}"
+                ? $"ATK {sword.stats.attack}    DEF {sword.stats.defense}    SPD {sword.stats.speed}    HEIGHT {sword.stats.height_cm:0}cm"
                 : "";
             _revealPrompt.text = "×  つぎへ";
         }

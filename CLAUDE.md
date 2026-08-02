@@ -57,10 +57,10 @@ tools/seed_sqlite.py                        ← テストデータを入れ直�
 ```
 
 テーブルは JSON の契約をそのまま平らにしたもの。`stats` のネストは無く
-`attack / defense / speed / reach / height_cm` が列。`SwordRepository` が `SwordData` に組み直す。
+`attack / defense / speed / height_cm` が列。`SwordRepository` が `SwordData` に組み直す。
 
 ```sql
-swords  (id TEXT PK, name TEXT, image_url TEXT, image BLOB, attack INT, defense INT, speed INT, reach REAL, height_cm REAL, created_at TEXT)
+swords  (id TEXT PK, name TEXT, image_url TEXT, image BLOB, attack INT, defense INT, speed INT, height_cm REAL, created_at TEXT)
 matches (id INTEGER PK AUTOINCREMENT, winner_id TEXT, loser_id TEXT, created_at TEXT)
 ```
 
@@ -80,14 +80,13 @@ matches (id INTEGER PK AUTOINCREMENT, winner_id TEXT, loser_id TEXT, created_at 
   "id": "uuid",
   "name": "たけしの剣",
   "image_url": "https://xxx.supabase.co/storage/v1/object/public/swords/uuid.png",
-  "stats": { "attack": 45, "defense": 35, "speed": 40, "reach": 1.3, "height_cm": 172 },
+  "stats": { "attack": 45, "defense": 35, "speed": 40, "height_cm": 172 },
   "created_at": "2026-08-01T12:00:00Z"
 }
 ```
 
 - `attack` / `defense` / `speed` : 合計120ポイントを配分した値
-- `reach` : 剣の長さ倍率（0.8〜1.5想定）
-- `height_cm` : 撮影した人物の身長。160cm未満=小、160〜180cm未満=中、180cm以上=大の雛型を選ぶ
+- `height_cm` : 撮影した人物の身長。モデル長は `height_cm × (1.5 / 170)`。160cm未満=小、160〜180cm未満=中、180cm以上=大の調整設定を選ぶ
 - 一覧取得: `GET /rest/v1/swords?select=*&order=created_at.desc&limit=30`
 - 戦績送信: `POST /rest/v1/matches` body `{"winner_id": "...", "loser_id": "..."}`
 - ヘッダ: `apikey` と `Authorization: Bearer <anon key>`
@@ -164,7 +163,7 @@ Fighter          … 原点が「吊り元」。Rigidbody + HingeJoint(Z軸) + B
 吊り元から刃先までの距離 R > sqrt(D^2 + ropeLength^2)
 ```
 
-`R` は reach が最小のとき 1.54 程度。`D = 1.0`（`spawnDistance = 0.5`）で sqrt(1.25) = 1.12 なので余裕がある。
+`R` は身長から生成したモデル長に連動する。`D = 1.0`（`spawnDistance = 0.5`）で sqrt(1.25) = 1.12 なので、対応する最小身長でも届くことを確認する。
 `spawnDistance` を触るときは必ずこれを確認する。
 
 **操作（DualShock4）— 左右だけ**
@@ -205,7 +204,7 @@ Input System の Action Asset は使わず、`Gamepad.all[playerIndex]` を直�
 | `attack` | ダメージ係数 |
 | `defense` | 重さ（`mass = 1 + defense/60`）とダメージ軽減 |
 | `speed` | 角度抵抗と回転速度上限。高いほど速く回せる |
-| `reach` | 刃の長さ＝振り子の半径。長いほど先に届くが重心も遠い |
+| `height_cm` | モデルの長さと攻撃範囲。`height_cm × (1.5 / 170)` でUnity上の長さに変換 |
 
 ## 6. 未実装（これから作る部分）
 

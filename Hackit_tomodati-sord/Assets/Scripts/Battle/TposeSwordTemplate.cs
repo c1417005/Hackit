@@ -36,19 +36,14 @@ public struct TposeSwordTemplateProfile
 
 /// <summary>
 /// 身長ステータスから大・中・小の雛型を選ぶ。
-///
-/// height_cm が入っている新データでは実測身長を使う。
-/// 旧SQLite/JSONとの互換性を保つため、height_cm が無い場合だけ reach を145～190cmへ換算する。
 /// </summary>
 public static class TposeSwordTemplateSelector
 {
     public const float SmallMaximumHeightCm = 160f;
     public const float MediumMaximumHeightCm = 180f;
-
-    const float MinimumReach = 0.8f;
-    const float MaximumReach = 1.5f;
-    const float MinimumHeightCm = 145f;
-    const float MaximumHeightCm = 190f;
+    public const float DefaultHeightCm = 170f;
+    public const float MinimumSupportedHeightCm = 100f;
+    public const float MaximumSupportedHeightCm = 250f;
 
     static readonly TposeSwordTemplateProfile SmallProfile = new TposeSwordTemplateProfile
     {
@@ -91,26 +86,26 @@ public static class TposeSwordTemplateSelector
         return SelectFromHeightCm(ResolveHeightCm(data));
     }
 
-    /// <summary>モデル生成に使用する身長。新データの height_cm を優先し、旧データだけ reach で補う。</summary>
+    /// <summary>モデル生成に使用する身長。欠損時は標準身長を使い、異常値だけ安全範囲へ収める。</summary>
     public static float ResolveHeightCm(SwordData data)
     {
         SwordStats stats = data != null ? data.stats : null;
-        if (stats == null) return ReachToHeightCm(1f);
+        if (stats == null) return DefaultHeightCm;
 
         float heightCm = stats.height_cm;
         if (heightCm > 0f && !float.IsNaN(heightCm) && !float.IsInfinity(heightCm))
         {
-            return heightCm;
+            return Mathf.Clamp(heightCm, MinimumSupportedHeightCm, MaximumSupportedHeightCm);
         }
 
-        return ReachToHeightCm(stats.reach);
+        return DefaultHeightCm;
     }
 
     public static TposeSwordTemplateProfile SelectFromHeightCm(float heightCm)
     {
         if (heightCm <= 0f || float.IsNaN(heightCm) || float.IsInfinity(heightCm))
         {
-            heightCm = ReachToHeightCm(1f);
+            heightCm = DefaultHeightCm;
         }
 
         if (heightCm < SmallMaximumHeightCm) return SmallProfile;
@@ -118,9 +113,4 @@ public static class TposeSwordTemplateSelector
         return LargeProfile;
     }
 
-    public static float ReachToHeightCm(float reach)
-    {
-        float normalized = Mathf.InverseLerp(MinimumReach, MaximumReach, Mathf.Clamp(reach, MinimumReach, MaximumReach));
-        return Mathf.Lerp(MinimumHeightCm, MaximumHeightCm, normalized);
-    }
 }

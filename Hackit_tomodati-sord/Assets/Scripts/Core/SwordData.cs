@@ -16,7 +16,7 @@ public class SwordData
 
 /// <summary>
 /// attack / defense / speed は合計120ポイントの配分値。
-/// reach は剣の長さ倍率（0.8〜1.5想定）、height_cm は撮影した人物の身長。
+/// height_cm は撮影した人物の身長で、モデルの長さと攻撃範囲の基準になる。
 /// </summary>
 [Serializable]
 public class SwordStats
@@ -24,17 +24,15 @@ public class SwordStats
     public int attack;
     public int defense;
     public int speed;
-    public float reach = 1f;
     public float height_cm;
 
     public SwordStats() { }
 
-    public SwordStats(int attack, int defense, int speed, float reach, float heightCm = 0f)
+    public SwordStats(int attack, int defense, int speed, float heightCm)
     {
         this.attack = attack;
         this.defense = defense;
         this.speed = speed;
-        this.reach = reach;
         height_cm = heightCm;
     }
 }

@@ -18,15 +18,18 @@ public static class SwordBuilder
     /// <summary>握りから刃元までの距離。ここが回転中心からの立ち上がり。</summary>
     const float GripOffset = 0.12f;
 
-    /// <summary>reach = 1.0 のときの刃の長さ。</summary>
-    const float BaseBladeLength = 1.15f;
+    /// <summary>170cmの人物を現在の標準表示と同じ約1.5 Unity単位にする。</summary>
+    public const float HeightToModelLength = 1.5f / 170f;
+
+    const float ReferenceModelLength = 1.5f;
 
     const float BladeWidth = 0.30f;
 
     /// <summary>刃の寸法。当たり判定を作る側がこれを見る。</summary>
     public struct Metrics
     {
-        public float reach;
+        public float heightCm;
+        public float modelLength;
         public float bladeLength;
         public float bladeWidth;
 
@@ -39,17 +42,19 @@ public static class SwordBuilder
 
     public static Metrics GetMetrics(SwordData data)
     {
-        SwordStats stats = data != null && data.stats != null ? data.stats : new SwordStats(40, 40, 40, 1f);
-        float reach = Mathf.Clamp(stats.reach <= 0f ? 1f : stats.reach, 0.8f, 1.5f);
-        float bladeLength = BaseBladeLength * reach;
+        float heightCm = TposeSwordTemplateSelector.ResolveHeightCm(data);
+        float modelLength = heightCm * HeightToModelLength;
+        float bladeLength = Mathf.Max(0.1f, modelLength - GripOffset);
+        float modelScale = modelLength / ReferenceModelLength;
 
         return new Metrics
         {
-            reach = reach,
+            heightCm = heightCm,
+            modelLength = modelLength,
             bladeLength = bladeLength,
-            bladeWidth = BladeWidth * reach,
+            bladeWidth = BladeWidth * modelScale,
             bladeCenterY = GripOffset + bladeLength * 0.5f,
-            tipDistance = GripOffset + bladeLength,
+            tipDistance = modelLength,
         };
     }
 
@@ -60,7 +65,7 @@ public static class SwordBuilder
     public static GameObject Build(SwordData data, Texture2D texture, Transform parent)
     {
         Metrics metrics = GetMetrics(data);
-        float heightCm = TposeSwordTemplateSelector.ResolveHeightCm(data);
+        float heightCm = metrics.heightCm;
         TposeSwordTemplateProfile profile = TposeSwordTemplateSelector.SelectFromHeightCm(heightCm);
 
         var root = new GameObject(data != null && !string.IsNullOrEmpty(data.name) ? data.name : "Sword");

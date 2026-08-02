@@ -205,7 +205,7 @@ public class SwordSelectUI : MonoBehaviour
         statsRect.pivot = new Vector2(0.5f, 0f);
         statsRect.anchoredPosition = new Vector2(0f, 10f);
         statsRect.sizeDelta = new Vector2(-12f, 52f);
-        statsLabel.text = $"ATK {sword.stats.attack}  DEF {sword.stats.defense}\nSPD {sword.stats.speed}  REACH {sword.stats.reach:0.0}";
+        statsLabel.text = $"ATK {sword.stats.attack}  DEF {sword.stats.defense}\nSPD {sword.stats.speed}  HEIGHT {sword.stats.height_cm:0}cm";
 
         return rect;
     }

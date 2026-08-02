@@ -267,7 +267,6 @@ public class SwordRepository : MonoBehaviour
                             row.GetInt("attack", 40),
                             row.GetInt("defense", 40),
                             row.GetInt("speed", 40),
-                            row.GetFloat("reach", 1f),
                             row.GetFloat("height_cm", 0f)),
                     };
 
@@ -383,7 +382,6 @@ public class SwordRepository : MonoBehaviour
                     attack,
                     defense,
                     speed,
-                    Mathf.Round(random.Next(80, 151)) / 100f,
                     Mathf.Round(random.Next(1450, 1901)) / 10f),
                 created_at = "2026-08-01T12:00:00Z",
             });

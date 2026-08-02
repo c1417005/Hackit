@@ -32,7 +32,6 @@ CREATE TABLE swords (
     attack     INTEGER NOT NULL,
     defense    INTEGER NOT NULL,
     speed      INTEGER NOT NULL,
-    reach      REAL    NOT NULL,
     height_cm  REAL    NOT NULL,
     created_at TEXT    NOT NULL
 );
@@ -50,14 +49,14 @@ CREATE INDEX idx_swords_created_at ON swords (created_at DESC);
 # attack + defense + speed = 120 になるよう配る。
 # 各タプル末尾の height_cm によって小・中・大の雛型が選ばれる。
 SWORDS = [
-    ("seed-0001", "たけしの剣",   45, 35, 40, 1.30, 174.0),
-    ("seed-0002", "ゆうこの剣",   38, 48, 34, 1.00, 158.0),
-    ("seed-0003", "けんたの剣",   42, 33, 45, 1.10, 168.0),
-    ("seed-0004", "みさきの剣",   56, 38, 26, 1.45, 182.0),
-    ("seed-0005", "しょうごの剣", 30, 55, 35, 0.85, 155.0),
-    ("seed-0006", "あやのの剣",   47, 32, 41, 1.20, 172.0),
-    ("seed-0007", "だいちの剣",   60, 30, 30, 1.50, 188.0),
-    ("seed-0008", "りんの剣",     26, 26, 68, 0.80, 152.0),
+    ("seed-0001", "たけしの剣",   45, 35, 40, 174.0),
+    ("seed-0002", "ゆうこの剣",   38, 48, 34, 158.0),
+    ("seed-0003", "けんたの剣",   42, 33, 45, 168.0),
+    ("seed-0004", "みさきの剣",   56, 38, 26, 182.0),
+    ("seed-0005", "しょうごの剣", 30, 55, 35, 155.0),
+    ("seed-0006", "あやのの剣",   47, 32, 41, 172.0),
+    ("seed-0007", "だいちの剣",   60, 30, 30, 188.0),
+    ("seed-0008", "りんの剣",     26, 26, 68, 152.0),
 ]
 
 
@@ -82,7 +81,6 @@ def add_one(
     attack = random.randint(25, 60)
     defense = random.randint(25, max(26, 121 - attack - 25))
     speed = 120 - attack - defense
-    reach = round(random.uniform(0.8, 1.5), 2)
     if height_cm is None:
         height_cm = round(random.uniform(145.0, 190.0), 1)
 
@@ -95,8 +93,8 @@ def add_one(
     try:
         connection.execute(
             "INSERT INTO swords "
-            "(id, name, image_url, image, attack, defense, speed, reach, height_cm, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(id, name, image_url, image, attack, defense, speed, height_cm, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 f"web-{uuid.uuid4().hex[:8]}",
                 name,
@@ -105,14 +103,13 @@ def add_one(
                 attack,
                 defense,
                 speed,
-                reach,
                 height_cm,
                 datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             ),
         )
         connection.commit()
         print(f"追加: {name}  atk{attack}/def{defense}/spd{speed} "
-              f"reach{reach} height{height_cm}cm"
+              f"height{height_cm}cm"
               f"  image={'あり' if blob else 'なし'}")
     finally:
         connection.close()
@@ -127,14 +124,14 @@ def main() -> None:
     try:
         connection.executescript(SCHEMA)
 
-        for index, (sword_id, name, attack, defense, speed, reach, height_cm) in enumerate(SWORDS):
+        for index, (sword_id, name, attack, defense, speed, height_cm) in enumerate(SWORDS):
             # created_at をずらして order by が意味を持つようにしておく
             created_at = f"2026-08-01T12:{index:02d}:00Z"
             connection.execute(
                 "INSERT INTO swords "
-                "(id, name, image_url, image, attack, defense, speed, reach, height_cm, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (sword_id, name, "", None, attack, defense, speed, reach, height_cm, created_at),
+                "(id, name, image_url, image, attack, defense, speed, height_cm, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (sword_id, name, "", None, attack, defense, speed, height_cm, created_at),
             )
 
         connection.commit()
@@ -143,7 +140,7 @@ def main() -> None:
         print(f"{DB_PATH}")
         print(f"swords {total} 件")
         for row in connection.execute(
-            "SELECT id, name, attack, defense, speed, reach, height_cm "
+            "SELECT id, name, attack, defense, speed, height_cm "
             "FROM swords ORDER BY created_at DESC"
         ):
             print("  ", row, "合計", row[2] + row[3] + row[4])

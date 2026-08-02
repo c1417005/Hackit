@@ -292,8 +292,7 @@ public class Fighter : MonoBehaviour
         // 判定は握りから刃先までの**全長**を覆う。
         // 以前は刃の一部（bladeLength * 0.92）しか無く、振り抜いても
         // 判定の先端が x=0.03 までしか出ないため相手に永久に届かなかった。
-        // ここを全長にすることで、reach の長い剣ほど遠くまで届くようになる
-        //（＝ reach がゲーム的に意味を持つ）。
+        // ここを全長にすることで、身長から生成されたモデルの見た目と攻撃範囲が一致する。
         float length = _metrics.tipDistance;
         hitboxObject.transform.localPosition = new Vector3(0f, length * 0.5f, 0f);
 
@@ -815,7 +814,7 @@ public class Fighter : MonoBehaviour
     {
         return Sword != null && Sword.stats != null
             ? Sword.stats
-            : new SwordStats(40, 40, 40, 1f);
+            : new SwordStats(40, 40, 40, TposeSwordTemplateSelector.DefaultHeightCm);
     }
 
     IEnumerator FlashBlade()
