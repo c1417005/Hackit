@@ -26,7 +26,7 @@ public class DebugResultOverlay : MonoBehaviour
             var help = new GUIStyle(GUI.skin.label) { fontSize = 13 };
             GUI.Label(new Rect(20, 120, 900, 60),
                 "□ = 縦斬り   △ = 横斬り\n" +
-                "キーボード: 1P = F / R   2P = . / ,",
+                "キーボード: 1P = F / R   2P = . / ,　　OPTIONS / Esc = 戻る",
                 help);
             return;
         }
@@ -46,7 +46,7 @@ public class DebugResultOverlay : MonoBehaviour
         if (_duel.CanLeaveResult)
         {
             var sub = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter };
-            GUI.Label(new Rect(0, Screen.height * 0.32f + 80, Screen.width, 40), "R キーで剣えらびに戻る", sub);
+            GUI.Label(new Rect(0, Screen.height * 0.32f + 80, Screen.width, 40), "OPTIONS / Esc / 戻るボタンで最初に戻る", sub);
         }
     }
 }

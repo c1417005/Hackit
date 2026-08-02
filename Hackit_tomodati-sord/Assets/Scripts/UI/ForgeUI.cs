@@ -187,7 +187,7 @@ public class ForgeUI : MonoBehaviour
         {
             _modeStatus.text =
                 $"1P: {ModeStatusText(0)}      2P: {ModeStatusText(1)}\n" +
-                "上下=カーソル移動   ×=けってい\n" +
+                "上下=カーソル移動   ×=けってい   ○=決定を戻す\n" +
                 "キーボード(代用): 1P = A/D・F   2P = ←/→・.";
         }
     }
@@ -495,9 +495,16 @@ public class ForgeUI : MonoBehaviour
     {
         for (int player = 0; player < 2; player++)
         {
-            if (_duel.GetMode(player) != DuelManager.PlayerMode.Undecided) continue;
+            ReadInput(player, out int step, out bool decide, out bool cancel);
 
-            ReadInput(player, out int step, out bool decide, out _);
+            if (cancel && _duel.GetMode(player) != DuelManager.PlayerMode.Undecided)
+            {
+                UiSoundPlayer.Cancel(_sfxSource);
+                _duel.CancelModeSelection(player);
+                continue;
+            }
+
+            if (_duel.GetMode(player) != DuelManager.PlayerMode.Undecided) continue;
 
             if (step != 0)
             {

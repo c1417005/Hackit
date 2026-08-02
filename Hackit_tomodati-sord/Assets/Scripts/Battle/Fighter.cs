@@ -30,7 +30,8 @@ public class Fighter : MonoBehaviour
     public bool useExternalInput;
 
     [Header("戦闘")]
-    public float maxHp = 100f;
+    [Tooltip("対戦が短すぎないよう、従来の100から200へ増量")]
+    public float maxHp = 200f;
     [Range(0.1f, 0.6f)] public float windupRatio = 0.28f;
     [Range(0.1f, 0.6f)] public float activeRatio = 0.34f;
     public float baseAttackDuration = 0.38f;
