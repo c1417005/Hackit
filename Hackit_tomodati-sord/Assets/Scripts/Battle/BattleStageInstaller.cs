@@ -50,14 +50,20 @@ public static class BattleStageInstaller
 
     public static Rig Install(Config config)
     {
+        Debug.Log("[Startup] BattleStageInstaller: begin");
         // シーンには旧版の値が Serialize 済みのことがあるので、必ず射程の成立する範囲へ収める
         float spawnDistance = Mathf.Clamp(config.spawnDistance, MinSpawnDistance, MaxSpawnDistance);
 
         Camera camera = SetupCamera(config.cameraPosition);
+        Debug.Log("[Startup] BattleStageInstaller: camera ready");
         BuildGround();
+        Debug.Log("[Startup] BattleStageInstaller: ground ready");
         BuildBackdrop(camera);
+        Debug.Log("[Startup] BattleStageInstaller: backdrop ready");
         SetupLight();
+        Debug.Log("[Startup] BattleStageInstaller: light ready");
         SetupVisualQuality(camera);
+        Debug.Log("[Startup] BattleStageInstaller: post processing ready");
 
         var rig = new Rig
         {
@@ -66,12 +72,14 @@ public static class BattleStageInstaller
             Player1 = BuildFighter("Player1", 0, +1, -spawnDistance, config.anchorHeight),
             Player2 = BuildFighter("Player2", 1, -1, +spawnDistance, config.anchorHeight),
         };
+        Debug.Log("[Startup] BattleStageInstaller: fighters ready");
 
         BattleCamera battleCamera = camera.gameObject.GetComponent<BattleCamera>();
         if (battleCamera == null) battleCamera = camera.gameObject.AddComponent<BattleCamera>();
         battleCamera.player1 = rig.Player1;
         battleCamera.player2 = rig.Player2;
 
+        Debug.Log("[Startup] BattleStageInstaller: complete");
         return rig;
     }
 
@@ -88,7 +96,7 @@ public static class BattleStageInstaller
     {
         var wall = GameObject.CreatePrimitive(PrimitiveType.Quad);
         wall.name = "ArenaBackdrop";
-        Object.DestroyImmediate(wall.GetComponent<Collider>());
+        Object.Destroy(wall.GetComponent<Collider>());
 
         Texture2D campus = Resources.Load<Texture2D>("Battle/KanazawaInstituteOfTechnologyBackground");
         if (campus != null)
@@ -124,7 +132,7 @@ public static class BattleStageInstaller
     {
         var pillar = GameObject.CreatePrimitive(PrimitiveType.Cube);
         pillar.name = name;
-        Object.DestroyImmediate(pillar.GetComponent<Collider>());
+        Object.Destroy(pillar.GetComponent<Collider>());
         pillar.transform.position = new Vector3(x, 2.7f, 2.05f);
         pillar.transform.localScale = new Vector3(width, 5.6f, 0.08f);
 

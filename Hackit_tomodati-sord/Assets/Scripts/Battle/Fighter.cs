@@ -293,7 +293,7 @@ public class Fighter : MonoBehaviour
         part.transform.localScale = localScale;
 
         Collider collider = part.GetComponent<Collider>();
-        if (collider != null) DestroyImmediate(collider);
+        if (collider != null) Destroy(collider);
 
         Renderer renderer = part.GetComponent<Renderer>();
         Shader shader = Shader.Find("Universal Render Pipeline/Lit")

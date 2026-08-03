@@ -40,7 +40,7 @@ public static class HandVisualFactory
         }
         catch (Exception exception)
         {
-            if (visualRoot != null) UnityEngine.Object.DestroyImmediate(visualRoot);
+            if (visualRoot != null) UnityEngine.Object.Destroy(visualRoot);
             Debug.LogWarning($"[HandVisual] 見た目の生成に失敗したため従来表示へ戻します: {exception.Message}");
             return false;
         }
@@ -128,7 +128,7 @@ public static class HandVisualFactory
         part.transform.localScale = localScale;
 
         Collider collider = part.GetComponent<Collider>();
-        if (collider != null) UnityEngine.Object.DestroyImmediate(collider);
+        if (collider != null) UnityEngine.Object.Destroy(collider);
 
         Renderer renderer = part.GetComponent<Renderer>();
         renderer.sharedMaterial = material;
@@ -153,9 +153,9 @@ public static class HandVisualFactory
     static void RemoveGameplayComponents(GameObject model)
     {
         foreach (Collider collider in model.GetComponentsInChildren<Collider>(true))
-            UnityEngine.Object.DestroyImmediate(collider);
+            UnityEngine.Object.Destroy(collider);
         foreach (Rigidbody body in model.GetComponentsInChildren<Rigidbody>(true))
-            UnityEngine.Object.DestroyImmediate(body);
+            UnityEngine.Object.Destroy(body);
         foreach (Animator animator in model.GetComponentsInChildren<Animator>(true))
             animator.enabled = false;
     }
