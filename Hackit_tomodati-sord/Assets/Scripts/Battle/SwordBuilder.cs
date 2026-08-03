@@ -119,7 +119,7 @@ public static class SwordBuilder
         var primitive = GameObject.CreatePrimitive(type);
         primitive.name = name;
         var collider = primitive.GetComponent<Collider>();
-        if (collider != null) Object.DestroyImmediate(collider);
+        if (collider != null) Object.Destroy(collider);
         primitive.transform.SetParent(parent, false);
         return primitive;
     }
@@ -140,6 +140,7 @@ public static class SwordBuilder
     /// </summary>
     static readonly string[] UnlitShaderCandidates =
     {
+        "FriendSword/TposeAlphaCutout",
         "Universal Render Pipeline/Unlit",
         "Unlit/Transparent Cutout",
         "Unlit/Transparent",
@@ -177,6 +178,14 @@ public static class SwordBuilder
 
     static Shader FindFirstAvailableShader()
     {
+        // Resourcesに置いた専用シェーダーを明示的に読み込むことで、
+        // 製品ビルドのシェーダー削除対象になって透明切り抜きが失われるのを防ぐ。
+        Shader bundledShader = Resources.Load<Shader>("TposeAlphaCutout");
+        if (bundledShader != null)
+        {
+            return bundledShader;
+        }
+
         foreach (string name in UnlitShaderCandidates)
         {
             Shader shader = Shader.Find(name);

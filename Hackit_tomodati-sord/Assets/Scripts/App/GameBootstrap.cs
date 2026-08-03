@@ -35,24 +35,30 @@ public class GameBootstrap : MonoBehaviour
 
     void Start()
     {
+        Debug.Log("[Startup] GameBootstrap.Start begin");
         var stage = BattleStageInstaller.Install(new BattleStageInstaller.Config
         {
             spawnDistance = spawnDistance,
             anchorHeight = anchorHeight,
             cameraPosition = cameraPosition,
         });
+        Debug.Log("[Startup] BattleStageInstaller.Install complete");
 
         // Installer が射程の成立する範囲へ丸めているので、その値をそのまま渡す。
         // ここで生の spawnDistance を渡すと、対戦開始時に DuelManager が
         // 別の位置へ置き直してしまい、攻撃が届かなくなる。
         _duel = FlowInstaller.Install(stage.Player1, stage.Player2, stage.SpawnDistance, anchorHeight);
+        Debug.Log("[Startup] FlowInstaller.Install complete");
 
         UiInstaller.Install(_duel, stage.Player1, stage.Player2, showDebugHud);
+        Debug.Log("[Startup] UiInstaller.Install complete");
 
         if (skipSelect)
         {
             _duel.OnPhaseChanged += StartImmediatelyOnce;
         }
+
+        Debug.Log("[Startup] GameBootstrap.Start complete");
     }
 
     /// <summary>選択画面に入った瞬間に対戦へ飛ばす。戦闘だけ確認したい時用。</summary>
