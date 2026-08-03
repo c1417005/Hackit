@@ -1,3 +1,4 @@
+[本番用.pptx](https://github.com/user-attachments/files/30641310/default.pptx)
 # チーム名
 
 <!-- TODO: チーム名を記載してください -->
@@ -16,7 +17,7 @@ QR コードを読んで写真を送るだけで、その場にいる友達が�
 
 ## デモ
 
-- 発表資料URL：<!-- TODO: 必須 -->
+- 発表資料URL：<!-- TODO: 必須[本番用.pptx](https://github.com/user-attachments/files/30641310/default.pptx) -->
 - デモURL：<!-- TODO: 任意 -->
 - デモ動画：<!-- TODO: 任意 -->
 
